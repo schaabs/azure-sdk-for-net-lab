@@ -1,0 +1,25 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <Choose>
+    <When Condition="$(MSBuildProjectName.EndsWith('.Test'))">
+      <PropertyGroup>
+        <TargetFramework>netcoreapp2.0</TargetFramework>
+      </PropertyGroup>
+    </When>
+    <Otherwise>
+      <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+      </PropertyGroup>
+    </Otherwise>
+  </Choose>
+
+  <!-- Dependency Versions -->
+  <PropertyGroup>
+    <NunitPackageVersion>3.10.1</NunitPackageVersion>
+    <NUnit3TestAdapterPackageVersion>3.10.0</NUnit3TestAdapterPackageVersion>
+    <MicrosoftNETTestSdkPackageVersion>15.7.2</MicrosoftNETTestSdkPackageVersion>
+  </PropertyGroup>
+</Project>

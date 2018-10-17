@@ -1,0 +1,23 @@
+# https://docs.microsoft.com/en-us/azure/devops/pipelines/languages/dotnet-core
+
+pool:
+  vmImage: 'macOS-10.13'
+
+steps:
+- script: dotnet restore
+  displayName: 'Restore'
+
+- script: dotnet build
+  displayName: 'Build'
+
+- task: DotNetCoreCLI@2
+  inputs:
+    command: test
+    projects: '**/*.Test/*.csproj'
+  displayName: 'Test'
+
+- script: dotnet pack --output $(Build.ArtifactStagingDirectory)
+  displayName: 'Pack'
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish'

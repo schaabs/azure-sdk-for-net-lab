@@ -1,0 +1,57 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.26124.0
+MinimumVisualStudioVersion = 15.0.26124.0
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KeyVault", "KeyVault", "{E9228502-F057-4DEC-80E5-67524662EE98}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.Adp.KeyVault", "KeyVault\Microsoft.Adp.KeyVault\Microsoft.Adp.KeyVault.csproj", "{01A352E3-82DD-4231-8274-69A1609942CA}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.Adp.KeyVault.Test", "KeyVault\Microsoft.Adp.KeyVault.Test\Microsoft.Adp.KeyVault.Test.csproj", "{F6C5103B-83D2-4617-A01D-D806B1DAE75E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{01A352E3-82DD-4231-8274-69A1609942CA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{01A352E3-82DD-4231-8274-69A1609942CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{01A352E3-82DD-4231-8274-69A1609942CA}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{01A352E3-82DD-4231-8274-69A1609942CA}.Debug|x64.Build.0 = Debug|Any CPU
+		{01A352E3-82DD-4231-8274-69A1609942CA}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{01A352E3-82DD-4231-8274-69A1609942CA}.Debug|x86.Build.0 = Debug|Any CPU
+		{01A352E3-82DD-4231-8274-69A1609942CA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{01A352E3-82DD-4231-8274-69A1609942CA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{01A352E3-82DD-4231-8274-69A1609942CA}.Release|x64.ActiveCfg = Release|Any CPU
+		{01A352E3-82DD-4231-8274-69A1609942CA}.Release|x64.Build.0 = Release|Any CPU
+		{01A352E3-82DD-4231-8274-69A1609942CA}.Release|x86.ActiveCfg = Release|Any CPU
+		{01A352E3-82DD-4231-8274-69A1609942CA}.Release|x86.Build.0 = Release|Any CPU
+		{F6C5103B-83D2-4617-A01D-D806B1DAE75E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F6C5103B-83D2-4617-A01D-D806B1DAE75E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F6C5103B-83D2-4617-A01D-D806B1DAE75E}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F6C5103B-83D2-4617-A01D-D806B1DAE75E}.Debug|x64.Build.0 = Debug|Any CPU
+		{F6C5103B-83D2-4617-A01D-D806B1DAE75E}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F6C5103B-83D2-4617-A01D-D806B1DAE75E}.Debug|x86.Build.0 = Debug|Any CPU
+		{F6C5103B-83D2-4617-A01D-D806B1DAE75E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F6C5103B-83D2-4617-A01D-D806B1DAE75E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F6C5103B-83D2-4617-A01D-D806B1DAE75E}.Release|x64.ActiveCfg = Release|Any CPU
+		{F6C5103B-83D2-4617-A01D-D806B1DAE75E}.Release|x64.Build.0 = Release|Any CPU
+		{F6C5103B-83D2-4617-A01D-D806B1DAE75E}.Release|x86.ActiveCfg = Release|Any CPU
+		{F6C5103B-83D2-4617-A01D-D806B1DAE75E}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{01A352E3-82DD-4231-8274-69A1609942CA} = {E9228502-F057-4DEC-80E5-67524662EE98}
+		{F6C5103B-83D2-4617-A01D-D806B1DAE75E} = {E9228502-F057-4DEC-80E5-67524662EE98}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6FA84F6E-4A90-4B87-A618-2BF87545D195}
+	EndGlobalSection
+EndGlobal
