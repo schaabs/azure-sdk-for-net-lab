@@ -1,15 +1,32 @@
 # https://docs.microsoft.com/en-us/azure/devops/pipelines/languages/dotnet-core
 
-  pool:
+jobs:
+- template: templates/test.yml
+  parameters:
+    name: Linux
+    vmImage: 'ubuntu-16.04'
+
+- template: templates/test.yml
+  parameters:
+    name: macOS
     vmImage: 'macOS-10.13'
 
-  steps:
-  - task: DotNetCoreCLI@2
-    inputs:
-      command: test
-      projects: '**/*.Test/*.csproj'
-    displayName: 'Test'
+- template: templates/test.yml
+  parameters:
+    name: Windows
+    vmImage: 'vs2017-win2016'
 
+- job: 'Publish'
+
+  dependsOn:
+  - 'Test_Linux'
+  - 'Test_macOS'
+  - 'Test_Windows'
+
+  pool:
+    vmImage: 'ubuntu-16.04'
+
+  steps:
   - script: dotnet pack --output $(Build.ArtifactStagingDirectory)
     displayName: 'Pack'
 
