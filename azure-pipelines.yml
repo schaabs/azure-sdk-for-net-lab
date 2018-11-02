@@ -1,4 +1,5 @@
-# https://docs.microsoft.com/en-us/azure/devops/pipelines/languages/dotnet-core
+trigger:
+- master
 
 jobs:
 - template: test.yml
