@@ -11,7 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Microsoft.Adp.KeyVault\Microsoft.Adp.KeyVault.csproj" />
+    <ProjectReference Include="..\Microsoft.Azure.Template\Microsoft.Azure.Template.csproj" />
   </ItemGroup>
 
 </Project>

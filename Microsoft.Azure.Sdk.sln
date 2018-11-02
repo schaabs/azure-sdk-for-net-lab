@@ -3,11 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.26124.0
 MinimumVisualStudioVersion = 15.0.26124.0
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KeyVault", "KeyVault", "{E9228502-F057-4DEC-80E5-67524662EE98}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Template", "Template", "{E9228502-F057-4DEC-80E5-67524662EE98}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.Adp.KeyVault", "KeyVault\Microsoft.Adp.KeyVault\Microsoft.Adp.KeyVault.csproj", "{01A352E3-82DD-4231-8274-69A1609942CA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.Azure.Template", "Template\Microsoft.Azure.Template\Microsoft.Azure.Template.csproj", "{01A352E3-82DD-4231-8274-69A1609942CA}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.Adp.KeyVault.Test", "KeyVault\Microsoft.Adp.KeyVault.Test\Microsoft.Adp.KeyVault.Test.csproj", "{F6C5103B-83D2-4617-A01D-D806B1DAE75E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.Azure.Template.Test", "Template\Microsoft.Azure.Template.Test\Microsoft.Azure.Template.Test.csproj", "{F6C5103B-83D2-4617-A01D-D806B1DAE75E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
