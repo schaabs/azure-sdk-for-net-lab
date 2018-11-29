@@ -14,7 +14,7 @@ namespace Azure.Core.Net.Pipeline
     {
         static readonly HttpClient s_client = new HttpClient();
 
-        public sealed override ServiceCallContext CreateContext(ref ServicePipeline client, CancellationToken cancellation, ServiceMethod method, Url url)
+        public sealed override ServiceCallContext CreateContext(ServicePipeline client, CancellationToken cancellation, ServiceMethod method, Url url)
             => new HttpClientContext(ref client, cancellation, method, url);
             
         public sealed override async Task ProcessAsync(ServiceCallContext context)

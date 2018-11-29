@@ -28,7 +28,7 @@ namespace Azure.Core.Testing
         public MockTransport(params int[] statusCodes)
             => _statusCodes = statusCodes;
 
-        public override ServiceCallContext CreateContext(ref ServicePipeline client, CancellationToken cancellation, ServiceMethod method, Url url)
+        public override ServiceCallContext CreateContext(ServicePipeline client, CancellationToken cancellation, ServiceMethod method, Url url)
             => new Context(ref client, cancellation, method, url);
 
         public override Task ProcessAsync(ServiceCallContext context)

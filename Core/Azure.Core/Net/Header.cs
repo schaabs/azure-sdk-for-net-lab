@@ -125,7 +125,11 @@ namespace Azure.Core.Net
 
             static readonly byte[] s_applicationOctetStream = Encoding.ASCII.GetBytes("application/octet-stream");
             public static ReadOnlySpan<byte> ApplicationOctetStream => s_applicationOctetStream;
+
+            static readonly byte[] s_userAgent = Encoding.ASCII.GetBytes("User-Agent");
+            public static ReadOnlySpan<byte> UserAgent => s_userAgent;
         }
+
         public static class Common
         {
             public static readonly Header JsonContentType = new Header(Constants.ContentType, Constants.ApplicationJson);

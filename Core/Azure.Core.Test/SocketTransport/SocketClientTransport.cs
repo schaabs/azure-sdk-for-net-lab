@@ -13,7 +13,7 @@ namespace Azure.Core.Net
 {
     public class SocketClientTransport : ServiceTransport
     {
-        public override ServiceCallContext CreateContext(ref ServicePipeline client, CancellationToken cancellation, ServiceMethod method, Url url)
+        public override ServiceCallContext CreateContext(ServicePipeline client, CancellationToken cancellation, ServiceMethod method, Url url)
             => new SocketClientContext(ref client, cancellation, url, method);
 
         public override async Task ProcessAsync(ServiceCallContext context)
@@ -190,7 +190,7 @@ namespace Azure.Core.Net
 
         public MockSocketTransport(params byte[][] responses) => _responses = responses;
 
-        public override ServiceCallContext CreateContext(ref ServicePipeline client, CancellationToken cancellation, ServiceMethod method, Url url)
+        public override ServiceCallContext CreateContext(ServicePipeline client, CancellationToken cancellation, ServiceMethod method, Url url)
             => new MockSocketContext(ref client, cancellation, method, url, _responses);
 
         class MockSocketContext : SocketClientContext

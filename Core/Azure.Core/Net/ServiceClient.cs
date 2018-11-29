@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Azure.Core.Net
 {
-    public struct ServicePipeline
+    public class ServicePipeline
     {
         ServicePolicy[] _pipeline;
         int _pipelineCount;
@@ -60,7 +60,7 @@ namespace Azure.Core.Net
         }
 
         public ServiceCallContext CreateContext(CancellationToken cancellation, ServiceMethod method, Url url)
-            => Transport.CreateContext(ref this, cancellation, method, url);
+            => Transport.CreateContext(this, cancellation, method, url);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public async Task ProcessAsync(ServiceCallContext context)
@@ -83,7 +83,7 @@ namespace Azure.Core.Net
     {
         public abstract Task ProcessAsync(ServiceCallContext context);
 
-        public abstract ServiceCallContext CreateContext(ref ServicePipeline clinet, CancellationToken cancellation, ServiceMethod method, Url url);
+        public abstract ServiceCallContext CreateContext(ServicePipeline clinet, CancellationToken cancellation, ServiceMethod method, Url url);
 
         public sealed override async Task ProcessAsync(ServiceCallContext context, ReadOnlyMemory<ServicePolicy> next)
         {
