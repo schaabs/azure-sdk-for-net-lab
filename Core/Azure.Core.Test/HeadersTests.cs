@@ -37,12 +37,12 @@ namespace Azure.Core.Tests
         [Test]
         public void UserAgentHeaderBasics()
         {
-            var userAgent = Header.CreateUserAgent("sdk_name", "sdk_version", "application_id").ToString();
+            var userAgent = Header.Common.CreateUserAgent("sdk_name", "sdk_version", "application_id").ToString();
 
             var isValidFormat = Regex.IsMatch(userAgent, @"^User-Agent:application_id sdk_name/sdk_version \(.*;.*\)", RegexOptions.IgnoreCase);
             Assert.True(isValidFormat);
 
-            var userAgentWithApplication = Header.CreateUserAgent("sdk_name", "sdk_version").ToString();
+            var userAgentWithApplication = Header.Common.CreateUserAgent("sdk_name", "sdk_version").ToString();
 
             isValidFormat = Regex.IsMatch(userAgentWithApplication, @"^User-Agent:sdk_name/sdk_version \(.*;.*\)", RegexOptions.IgnoreCase);
             Assert.True(isValidFormat);

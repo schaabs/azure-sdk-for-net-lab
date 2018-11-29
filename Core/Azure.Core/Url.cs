@@ -14,6 +14,8 @@ namespace Azure.Core
 
         public bool IsHttps => Bytes.StartsWith(s_https);
 
+        public Url(Uri uri) : this(uri.ToString()) { }
+
         public Url(string url)
         {
             _url = Encoding.ASCII.GetBytes(url);
@@ -34,7 +36,7 @@ namespace Azure.Core
 
         public static implicit operator Url(string url) => new Url(url);
 
-        public void Deconstruct(out ReadOnlySpan<byte> Path, out ReadOnlySpan<byte> Host)
+        public void Deconstruct(out ReadOnlySpan<byte> Host, out ReadOnlySpan<byte> Path)
         {
             var url = Bytes;
 
@@ -45,7 +47,7 @@ namespace Azure.Core
             Host = hostPathAndQuery.Slice(0, pathStart);
         }
 
-        public void Deconstruct(out ReadOnlySpan<byte> Path, out ReadOnlySpan<byte> Host, out ServiceProtocol Protocol)
+        public void Deconstruct(out ServiceProtocol Protocol, out ReadOnlySpan<byte> Host, out ReadOnlySpan<byte> Path)
         {
             var url = Bytes;
 

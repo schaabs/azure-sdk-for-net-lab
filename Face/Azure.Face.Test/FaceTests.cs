@@ -59,11 +59,11 @@ namespace Azure.Face.Tests
             var cancellation = new CancellationTokenSource();
 
             var socket = new SocketClientTransport();
-            var client = new ServicePipeline(socket);
-            client.Add(new RetryPolicy());
-            client.Pool = pool;
+            var pipeline = new ServicePipeline(socket);
+            pipeline.Add(new RetryPolicy());
+            pipeline.Pool = pool;
 
-            var service = new FaceService(s_account, s_key, client);
+            var service = new FaceService(s_account, s_key, pipeline);
             var response = await service.DetectAsync(cancellation.Token, new Uri(@"https://upload.wikimedia.org/wikipedia/commons/5/50/Albert_Einstein_%28Nobel%29.png"));
 
             Assert.AreEqual(200, response.Status);
@@ -82,10 +82,7 @@ namespace Azure.Face.Tests
             if (NoAccountSettings()) return;
             var cancellation = new CancellationTokenSource();
 
-            var client = new ServicePipeline(new SocketClientTransport());
-            client.Add(new RetryPolicy());
-
-            var service = new FaceService(s_account, s_key, client);
+            var service = new FaceService(s_account, s_key);
             var response = await service.DetectAsync(cancellation.Token, new Uri(@"https://upload.wikimedia.org/wikipedia/commons/5/50/Albert_Einstein_%28Nobel%29.png"));
 
             Assert.IsTrue(response.TryGetHeader("Content-Length", out var value));
@@ -100,12 +97,16 @@ namespace Azure.Face.Tests
         public async Task DetectStreaming()
         {
             if (NoAccountSettings()) return;
+            var pool = new TestPool<byte>();
             var cancellation = new CancellationTokenSource();
 
-            var client = new ServicePipeline(new SocketClientTransport());
-            client.Add(new RetryPolicy());
+            var socket = new SocketClientTransport(); // TODO (pri 1): streaming does not work with HttpTransport
+            var pipeline = new ServicePipeline(socket);
+            pipeline.Add(new RetryPolicy());
+            pipeline.Pool = pool;
 
-            var service = new FaceService(s_account, s_key, client);
+            var service = new FaceService(s_account, s_key, pipeline);
+
             Response<ContentReader> response = await service.DetectLazyAsync(cancellation.Token, new Uri(@"https://upload.wikimedia.org/wikipedia/commons/5/50/Albert_Einstein_%28Nobel%29.png"));
 
             Assert.IsTrue(response.TryGetHeader(Encoding.ASCII.GetBytes("Content-Length"), out long contentLength));
@@ -117,7 +118,7 @@ namespace Azure.Face.Tests
             var content = ReadOnlySequence<byte>.Empty;
             while (content.Length != contentLength)
             {
-                content = await reader.ReadAsync();
+                content = await reader.ReadAsync(contentLength);
             }
                   
             if (content.IsSingleSegment)
@@ -133,6 +134,7 @@ namespace Azure.Face.Tests
             }
                               
             response.Dispose();
+            Assert.AreEqual(0, pool.CurrentlyRented);
         }
 
         struct DetectResult

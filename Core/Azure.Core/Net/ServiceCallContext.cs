@@ -3,6 +3,7 @@ using System;
 using System.Buffers;
 using System.Buffers.Text;
 using System.ComponentModel;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -16,7 +17,7 @@ namespace Azure.Core.Net
 
         public ServiceLogger Logger { get; set; }
 
-        public ContextOptions Options => new ContextOptions(this);
+        public ServiceCallOptions Options => new ServiceCallOptions(this);
 
         public ServiceCallContext(Url url, CancellationToken cancellation, ServiceLogger logger)
         {
@@ -30,8 +31,13 @@ namespace Azure.Core.Net
 
         public abstract void AddHeader(Header header);
 
+        public virtual void AddHeader(string name, string value)
+            => AddHeader(new Header(name, value));
+
         public ContentWriter ContentWriter => new ContentWriter(this);
 
+        // TODO (pri 0): this should not be here. It cannot be supported for some streams.
+        protected internal abstract ReadOnlySequence<byte> RequestContent { get; }        
         protected internal abstract Memory<byte> GetRequestBuffer(int minimumSize);
         protected internal abstract void CommitRequestBuffer(int size);
         protected internal abstract Task FlushAsync();
@@ -44,11 +50,11 @@ namespace Azure.Core.Net
 
         protected internal abstract bool TryGetHeader(ReadOnlySpan<byte> name, out ReadOnlySpan<byte> value);
 
-        protected internal abstract Task ReadContentAsync(long minimumLength = 0);
+        protected internal abstract Task<ReadOnlySequence<byte>> ReadContentAsync(long minimumLength = 0);
 
         protected internal abstract void DisposeResponseContent(long bytes);
 
-        protected internal abstract ReadOnlySequence<byte> Content { get; }
+        protected internal abstract ReadOnlySequence<byte> ResponseContent { get; }
 
         public virtual void Dispose() => _options.Clear();
 
@@ -71,9 +77,9 @@ namespace Azure.Core.Net
 
         public int Status => _context.Status;
 
-        public ReadOnlySequence<byte> Content => _context.Content;
+        public ReadOnlySequence<byte> Content => _context.ResponseContent;
 
-        public async Task ReadContentAsync(long minimumLength = 0) => await _context.ReadContentAsync(minimumLength).ConfigureAwait(false);
+        public Task<ReadOnlySequence<byte>> ReadContentAsync(long minimumLength = 0) => _context.ReadContentAsync(minimumLength);
 
         public bool TryGetHeader(ReadOnlySpan<byte> name, out long value)
         {
@@ -96,104 +102,10 @@ namespace Azure.Core.Net
         public override int GetHashCode() => base.GetHashCode();
 
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public override string ToString() => base.ToString();
-    }
-
-    public readonly struct ContextOptions
-    {
-        readonly ServiceCallContext _context;
-
-        public ContextOptions(ServiceCallContext context)
-            => _context = context;
-
-        public void SetOption(object key, long value)
-            => _context._options.SetOption(key, value);
-
-        public void SetOption(object key, object value)
-            => _context._options.SetOption(key, value);
-
-        public bool TryGetOption(object key, out object value)
-            => _context._options.TryGetOption(key, out value);
-
-        public bool TryGetOption(object key, out long value)
-            => _context._options.TryGetOption(key, out value);
-
-        public long GetInt64(object key)
-            => _context._options.GetInt64(key);
-
-        public object GetObject(object key)
-            => _context._options.GetInt64(key);
-
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public override bool Equals(object obj) => base.Equals(obj);
-
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public override int GetHashCode() => base.GetHashCode();
-
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public override string ToString() => base.ToString();
-    }
-
-    public struct ContentReader
-    {
-        ServiceCallContext _context;
-
-        public ContentReader(ServiceCallContext context) => _context = context;
-
-        public async Task<ReadOnlySequence<byte>> ReadAsync(long minBytes = 0)
+        public override string ToString()
         {
-            await _context.ReadContentAsync(minBytes).ConfigureAwait(false);
-            return _context.Content;
+            var contentText = Encoding.UTF8.GetString(Content.ToArray());
+            return $"{Status} {contentText}";
         }
-
-        public void Advance(long bytes) => _context.DisposeResponseContent(bytes);
-
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public override bool Equals(object obj) => base.Equals(obj);
-
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public override int GetHashCode() => base.GetHashCode();
-
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public override string ToString() => base.ToString();
-    }
-
-    // TODO (pri 2): does this need FlushAsync?
-    public struct ContentWriter : IBufferWriter<byte>
-    {
-        ServiceCallContext _context;
-
-        public ContentWriter(ServiceCallContext context) => _context = context;
-
-        public void Advance(int bytes) => _context.CommitRequestBuffer(bytes);
-
-        public Memory<byte> GetMemory(int sizeHint = 0) => _context.GetRequestBuffer(sizeHint);
-
-        public Span<byte> GetSpan(int sizeHint = 0) => GetMemory(sizeHint).Span;
-
-        public async Task FlushAsync() => await _context.FlushAsync().ConfigureAwait(false);
-
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public override bool Equals(object obj) => base.Equals(obj);
-
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public override int GetHashCode() => base.GetHashCode();
-
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public override string ToString() => base.ToString();
-    }
-
-    public enum ServiceMethod : byte
-    {
-        Get,
-        Post,
-        Put
-    }
-
-    public enum ServiceProtocol : byte
-    {
-        Http,
-        Https,
-        Other,
     }
 }

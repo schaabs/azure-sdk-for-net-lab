@@ -49,13 +49,15 @@ namespace Azure.Core.Testing
 
             protected override int Status => _status;
 
-            protected override ReadOnlySequence<byte> Content => throw new NotImplementedException();
+            protected override ReadOnlySequence<byte> ResponseContent => throw new NotImplementedException();
+
+            protected override ReadOnlySequence<byte> RequestContent => throw new NotImplementedException();
 
             public Context(ref ServicePipeline client, CancellationToken cancellation, ServiceMethod method, Url url)
                 : base(url, cancellation, client.Logger)
                 => SetRequestLine(method, url);
 
-            protected override Task ReadContentAsync(long minimumLength)
+            protected override Task<ReadOnlySequence<byte>> ReadContentAsync(long minimumLength)
                 => Task.FromResult(ReadOnlySequence<byte>.Empty);
 
             public void SetStatus(int status) => _status = status;

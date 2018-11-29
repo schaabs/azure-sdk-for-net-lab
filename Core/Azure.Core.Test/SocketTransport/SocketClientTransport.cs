@@ -44,7 +44,7 @@ namespace Azure.Core.Net
                 _contentBuffer = new Sequence<byte>(client.Pool);
                 _requestBuffer = new Sequence<byte>(client.Pool);
 
-                var (path, host) = url;
+                var (_, host, path) = url;
                 Http.WriteRequestLine(ref _requestBuffer, ServiceProtocol.Https, method, path);
                 AddHeader(Header.CreateHost(host));
             }
@@ -70,12 +70,12 @@ namespace Azure.Core.Net
                 }
             }
 
-            protected override async Task ReadContentAsync(long minimumLength)
+            protected override async Task<ReadOnlySequence<byte>> ReadContentAsync(long minimumLength)
             {
                 while (true)
                 {
-                    var length = _contentBuffer.Length;
-                    if (length - _contentStart >= minimumLength) return;
+                    var length = _contentBuffer.Length - _contentStart;
+                    if (length >= minimumLength) return ResponseContent;
                     _contentBuffer = await ReceiveAsync(_contentBuffer).ConfigureAwait(false);
                 }
             }
@@ -136,9 +136,11 @@ namespace Azure.Core.Net
             }
 
             ReadOnlySequence<byte> Headers => _contentBuffer.AsReadOnly().Slice(_headersStart, _contentStart - Http.CRLF.Length);
-            protected override ReadOnlySequence<byte> Content => _contentBuffer.AsReadOnly().Slice(_contentStart);
+            protected override ReadOnlySequence<byte> ResponseContent => _contentBuffer.AsReadOnly().Slice(_contentStart);
 
             protected override int Status => _statusCode;
+
+            protected override ReadOnlySequence<byte> RequestContent => _contentBuffer.AsReadOnly();
 
             protected override bool TryGetHeader(ReadOnlySpan<byte> name, out ReadOnlySpan<byte> value)
             {

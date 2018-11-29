@@ -3,10 +3,11 @@ using System.Runtime.InteropServices;
 using System.Text;
 using static System.Buffers.Text.Encodings;
 using System.Buffers;
+using System.ComponentModel;
 
 namespace Azure.Core.Net
 {
-    public struct Header
+    public struct Header : IEquatable<Header>
     {
         byte[] _utf8;
 
@@ -82,6 +83,7 @@ namespace Azure.Core.Net
 
         public override string ToString() => Utf8.ToString(_utf8.AsSpan(0, _utf8.Length - 2));
 
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public bool TryWrite(Span<byte> buffer, out int written, StandardFormat format = default)
         {
             if (!format.IsDefault) throw new NotSupportedException("format not supported");
@@ -92,35 +94,65 @@ namespace Azure.Core.Net
             return true;
         }
 
-        // TODO (pri 3): eliminate this allocations
-        static readonly string PlatfromInformation = $"({RuntimeInformation.FrameworkDescription}; {RuntimeInformation.OSDescription})";
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public override int GetHashCode() => base.GetHashCode();
 
-        public static Header CreateUserAgent(string sdkName, string sdkVersion, string applicationId = default)
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public override bool Equals(object obj)
         {
-            byte[] utf8 = null;
-            if (applicationId == default) utf8 = Encoding.ASCII.GetBytes($"User-Agent:{sdkName}/{sdkVersion} {PlatfromInformation}\r\n");
-            else utf8 = Encoding.ASCII.GetBytes($"User-Agent:{applicationId} {sdkName}/{sdkVersion} {PlatfromInformation}\r\n");
-            return new Header() { _utf8 = utf8 };
-        }
-        public static Header CreateContentLength(long length)
-        {
-            byte[] utf8 = Encoding.ASCII.GetBytes($"Content-Length:{length}\r\n");
-            return new Header() { _utf8 = utf8 };
+            if(obj is Header header) {
+                return Equals(header);
+            }
+            return false;
         }
 
-        static readonly byte[] s_Host = Encoding.ASCII.GetBytes("Host");
-        static readonly byte[] s_ContentLength = Encoding.ASCII.GetBytes("Content-Length");
-        static readonly byte[] s_ContentType = Encoding.ASCII.GetBytes("Content-Type");
+        public bool Equals(Header other)
+            => _utf8.AsSpan().SequenceEqual(other._utf8);
 
-        public static readonly Header JsonContentType = new Header(s_ContentType, "application/json");
-        public static readonly Header StreamContentType = new Header(s_ContentType, "application/octet-stream");
+        public static class Constants
+        {
+            static readonly byte[] s_host = Encoding.ASCII.GetBytes("Host");
+            public static ReadOnlySpan<byte> Host => s_host;
 
+            static readonly byte[] s_contentLength = Encoding.ASCII.GetBytes("Content-Length");
+            public static ReadOnlySpan<byte> ContentLength => s_contentLength;
+
+            static readonly byte[] s_contentType = Encoding.ASCII.GetBytes("Content-Type");
+            public static ReadOnlySpan<byte> ContentType => s_contentType;
+
+            static readonly byte[] s_applicationJson = Encoding.ASCII.GetBytes("application/json");
+            public static ReadOnlySpan<byte> ApplicationJson => s_applicationJson;
+
+            static readonly byte[] s_applicationOctetStream = Encoding.ASCII.GetBytes("application/octet-stream");
+            public static ReadOnlySpan<byte> ApplicationOctetStream => s_applicationOctetStream;
+        }
+        public static class Common
+        {
+            public static readonly Header JsonContentType = new Header(Constants.ContentType, Constants.ApplicationJson);
+            public static readonly Header OctetStreamContentType = new Header(Constants.ContentType, Constants.ApplicationOctetStream);
+
+            // TODO (pri 3): eliminate this allocations
+            static readonly string PlatfromInformation = $"({RuntimeInformation.FrameworkDescription}; {RuntimeInformation.OSDescription})";
+
+            public static Header CreateUserAgent(string sdkName, string sdkVersion, string applicationId = default)
+            {
+                byte[] utf8 = null;
+                if (applicationId == default) utf8 = Encoding.ASCII.GetBytes($"User-Agent:{sdkName}/{sdkVersion} {PlatfromInformation}\r\n");
+                else utf8 = Encoding.ASCII.GetBytes($"User-Agent:{applicationId} {sdkName}/{sdkVersion} {PlatfromInformation}\r\n");
+                return new Header() { _utf8 = utf8 };
+            }
+            public static Header CreateContentLength(long length)
+            {
+                byte[] utf8 = Encoding.ASCII.GetBytes($"Content-Length:{length}\r\n");
+                return new Header() { _utf8 = utf8 };
+            }
+        }
         public static Header CreateHost(ReadOnlySpan<byte> hostName)
         {
-            var buffer = new byte[s_Host.Length + hostName.Length + 3];
-            s_Host.AsSpan().CopyTo(buffer);
-            buffer[s_Host.Length] = (byte)':';
-            hostName.CopyTo(buffer.AsSpan(s_Host.Length + 1));
+            var buffer = new byte[Constants.Host.Length + hostName.Length + 3];
+            Constants.Host.CopyTo(buffer);
+            buffer[Constants.Host.Length] = (byte)':';
+            hostName.CopyTo(buffer.AsSpan(Constants.Host.Length + 1));
             buffer[buffer.Length - 1] = (byte)'\n';
             buffer[buffer.Length - 2] = (byte)'\r';
             return new Header() { _utf8 = buffer };

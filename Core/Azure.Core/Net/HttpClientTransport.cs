@@ -14,18 +14,23 @@ namespace Azure.Core.Net.Pipeline
     {
         static readonly HttpClient s_client = new HttpClient();
 
-        public override ServiceCallContext CreateContext(ref ServicePipeline client, CancellationToken cancellation, ServiceMethod method, Url url)
+        public sealed override ServiceCallContext CreateContext(ref ServicePipeline client, CancellationToken cancellation, ServiceMethod method, Url url)
             => new HttpClientContext(ref client, cancellation, method, url);
             
-        public override async Task ProcessAsync(ServiceCallContext context)
+        public sealed override async Task ProcessAsync(ServiceCallContext context)
         {
             var httpTransportContext = context as HttpClientContext;
             if (httpTransportContext == null) throw new InvalidOperationException("the context is not compatible with the transport");
 
             var httpRequest = httpTransportContext.BuildRequestMessage();
 
-            HttpResponseMessage responseMessage = await s_client.SendAsync(httpRequest, context.Cancellation).ConfigureAwait(false);
+            HttpResponseMessage responseMessage = await ProcessCoreAsync(context.Cancellation, httpRequest).ConfigureAwait(false);
             httpTransportContext.ProcessResponseMessage(responseMessage);
+        }
+
+        protected virtual async Task<HttpResponseMessage> ProcessCoreAsync(CancellationToken cancellation, HttpRequestMessage httpRequest)
+        {
+            return await s_client.SendAsync(httpRequest, cancellation).ConfigureAwait(false);
         }
 
         class HttpClientContext : ServiceCallContext
@@ -34,8 +39,8 @@ namespace Azure.Core.Net.Pipeline
             Sequence<byte> _content = new Sequence<byte>();
 
             HttpRequestMessage _requestMessage;
-            string _contentType;
-            string _contentLength;
+            string _contentTypeHeaderValue; // TODO (pri 2): move this to _headers
+            string _contentLengthHeaderValue;
 
             HttpResponseMessage _responseMessage;
             
@@ -54,15 +59,28 @@ namespace Azure.Core.Net.Pipeline
                 var valueString = Utf8.ToString(header.Value);
                 var name = header.Name;
 
-                if (name.SequenceEqual(s_contentType)) {
-                    _contentType = valueString;
+                if (name.SequenceEqual(Header.Constants.ContentType)) {
+                    _contentTypeHeaderValue = valueString;
                 }
-                else if (name.SequenceEqual(s_contentLength)) {
-                    _contentLength = valueString;
+                else if (name.SequenceEqual(Header.Constants.ContentLength)) {
+                    _contentLengthHeaderValue = valueString;
                 }
                 else {
                     var nameString = Utf8.ToString(header.Name);
                     _requestMessage.Headers.Add(nameString, valueString);
+                }
+            }
+
+            public override void AddHeader(string name, string value)
+            {
+                if (name.Equals("Content-Type", StringComparison.InvariantCulture)) {
+                    _contentTypeHeaderValue = value;
+                }
+                if (name.Equals("Content-Length", StringComparison.InvariantCulture)) {
+                    _contentLengthHeaderValue = value;
+                }
+                else {
+                    _requestMessage.Headers.Add(name, value);
                 }
             }
 
@@ -71,9 +89,7 @@ namespace Azure.Core.Net.Pipeline
             protected internal override void CommitRequestBuffer(int size) => _content.Advance(size);
 
             protected internal override Task FlushAsync()
-            {
-                throw new NotImplementedException();
-            }
+                => Task.CompletedTask;
 
             internal HttpRequestMessage BuildRequestMessage()
             {
@@ -87,9 +103,9 @@ namespace Azure.Core.Net.Pipeline
 
                 if (_content.Length != 0)
                 {
-                    message.Content = new ByteArrayContent(_content.AsReadOnly().ToArray());
-                    message.Content.Headers.Add("Content-Type", _contentType);
-                    message.Content.Headers.Add("Content-Length", _contentLength);
+                    message.Content = new ReadOnlySequenceContent(_content.AsReadOnly(), Cancellation);
+                    message.Content.Headers.Add("Content-Type", _contentTypeHeaderValue);
+                    message.Content.Headers.Add("Content-Length", _contentLengthHeaderValue);
                 }
 
                 return message;
@@ -128,16 +144,18 @@ namespace Azure.Core.Net.Pipeline
                 return true;
             }
 
-            protected internal override ReadOnlySequence<byte> Content => _content.AsReadOnly();
+            protected internal override ReadOnlySequence<byte> ResponseContent => _content.AsReadOnly();
 
-            protected internal async override Task ReadContentAsync(long minimumLength)
+            protected internal override ReadOnlySequence<byte> RequestContent => _content.AsReadOnly();
+
+            protected internal async override Task<ReadOnlySequence<byte>> ReadContentAsync(long minimumLength)
             { 
                 _content.Dispose();
                 var contentStream = await _responseMessage.Content.ReadAsStreamAsync().ConfigureAwait(false);
                 while (true)
                 {
                     var length = _content.Length;
-                    if (length >= minimumLength) return; // TODO (pri 3): is this ok when minimumLength is zero?
+                    if (length >= minimumLength) return _content.AsReadOnly(); // TODO (pri 3): is this ok when minimumLength is zero?
                     _content = await contentStream.ReadAsync(_content, Cancellation).ConfigureAwait(false);
                 }
             }
@@ -167,11 +185,6 @@ namespace Azure.Core.Net.Pipeline
                     default: throw new NotImplementedException();
                 }
             }
-
-            #region string table
-            static readonly byte[] s_contentLength = Encoding.ASCII.GetBytes("Content-Length");
-            static readonly byte[] s_contentType = Encoding.ASCII.GetBytes("Content-Type");
-            #endregion
         }
     }
 }

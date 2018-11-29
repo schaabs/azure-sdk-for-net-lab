@@ -9,8 +9,6 @@ namespace Azure.Face
 {
     public struct FaceDetectResult
     {
-        public bool IsSuccess;
-
         // face attributes
         public float Age;
         public float Smile;
@@ -80,8 +78,6 @@ namespace Azure.Face
                         break;
                 }
             }
-
-            result.IsSuccess = true;
             return result;
         }
 

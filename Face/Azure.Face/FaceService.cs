@@ -56,10 +56,10 @@ namespace Azure.Face
             try
             {
                 context = _client.CreateContext(cancellation, ServiceMethod.Post, url);
-
+                
                 context.AddHeader(_keyHeader);
                 context.AddHeader(Options.UserAgentHeader);
-                context.AddHeader(Header.JsonContentType);
+                context.AddHeader(Header.Common.JsonContentType);
 
                 WriteJsonContent(context, image);
 
@@ -100,10 +100,10 @@ namespace Azure.Face
 
                 context.AddHeader(_keyHeader);
                 context.AddHeader(Options.UserAgentHeader);
-                context.AddHeader(Header.StreamContentType);
+                context.AddHeader(Header.Common.OctetStreamContentType);
 
                 // TODO (pri 0): this needs to happen after ProcessAsync as the payload might be very large
-                await WriteStreamContent(cancellation, context, imagePath);
+                await WriteStreamContent(cancellation, context, imagePath).ConfigureAwait(false);
 
                 await _client.ProcessAsync(context).ConfigureAwait(false);
 
@@ -141,7 +141,7 @@ namespace Azure.Face
 
                 context.AddHeader(_keyHeader);
                 context.AddHeader(Options.UserAgentHeader);
-                context.AddHeader(Header.JsonContentType);
+                context.AddHeader(Header.Common.JsonContentType);
 
                 WriteJsonContent(context, image);
 
@@ -166,7 +166,7 @@ namespace Azure.Face
             {
                 ApiVersion = Encoding.ASCII.GetBytes(apiVersion);
                 _applicationId = default;
-                UserAgentHeader = Header.CreateUserAgent(sdkName: "Azure-CognitiveServices-Face", sdkVersion: "1.0.0", _applicationId);
+                UserAgentHeader = Header.Common.CreateUserAgent(sdkName: "Azure-CognitiveServices-Face", sdkVersion: "1.0.0", _applicationId);
             }
 
             public string ApplicationId
@@ -175,7 +175,7 @@ namespace Azure.Face
                 set {
                     if (string.Equals(_applicationId, value, StringComparison.Ordinal)) return;
                     _applicationId = value;
-                    UserAgentHeader = Header.CreateUserAgent(sdkName: "Azure-CognitiveServices-Face", sdkVersion: "1.0.0", _applicationId);
+                    UserAgentHeader = Header.Common.CreateUserAgent(sdkName: "Azure-CognitiveServices-Face", sdkVersion: "1.0.0", _applicationId);
                 }
             }
 
@@ -206,7 +206,7 @@ namespace Azure.Face
         {
             var url = new Url(image.ToString());
             int contentLength = s_jsonFront.Length + url.Bytes.Length + s_jsonBack.Length;
-            context.AddHeader(Header.CreateContentLength(contentLength));
+            context.AddHeader(Header.Common.CreateContentLength(contentLength));
 
             // write content
             // TODO (pri 3): this should use a writer
@@ -231,7 +231,7 @@ namespace Azure.Face
                     writer.Advance(read);
                 } while (read > 0);
 
-                context.AddHeader(Header.CreateContentLength(stream.Length));
+                context.AddHeader(Header.Common.CreateContentLength(stream.Length));
             }
         }
 

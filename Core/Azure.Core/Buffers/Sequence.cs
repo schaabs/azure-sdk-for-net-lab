@@ -167,6 +167,7 @@ namespace Azure.Core.Buffers
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override string ToString()
         {
+            if (_commited == 0) return string.Empty;
             var bytes = _buffer as byte[];
             if (bytes != null)
             {
