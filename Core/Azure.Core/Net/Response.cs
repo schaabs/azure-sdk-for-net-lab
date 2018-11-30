@@ -6,7 +6,7 @@ using System.Text;
 
 namespace Azure.Core.Net
 {
-    public struct Response<T>
+    public struct Response<T> : IDisposable
     {
         ServiceResponse _response;
         Func<ReadOnlySequence<byte>, T> _contentParser;

@@ -128,6 +128,10 @@ namespace Azure.Core.Net
 
             static readonly byte[] s_userAgent = Encoding.ASCII.GetBytes("User-Agent");
             public static ReadOnlySpan<byte> UserAgent => s_userAgent;
+
+            static readonly byte[] s_accept = Encoding.ASCII.GetBytes("Accept");
+            public static ReadOnlySpan<byte> Accept => s_accept;
+
         }
 
         public static class Common

@@ -22,6 +22,12 @@ namespace Azure.Core
             _count = _url.Length;
         }
 
+        public Url(ReadOnlySpan<byte> utf8)
+        {
+            _url = utf8.ToArray();
+            _count = _url.Length;
+        }
+
         // TODO (pri 2): this should be reamoved and/or cleaned up
         public Url((byte[] buffer, int length) slice)
         {
