@@ -1,5 +1,6 @@
 ﻿using System.Buffers;
 using System.ComponentModel;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace Azure.Core.Net
