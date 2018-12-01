@@ -12,6 +12,13 @@ namespace Azure.Core.Net
         Func<ReadOnlySequence<byte>, T> _contentParser;
         T _parsedContent;
 
+        public Response(ServiceResponse response)
+        {
+            _response = response;
+            _contentParser = null;
+            _parsedContent = default;
+        }
+
         public Response(ServiceResponse response, Func<ReadOnlySequence<byte>, T> parser)
         {
             _response = response;

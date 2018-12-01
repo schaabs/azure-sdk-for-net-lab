@@ -1,5 +1,6 @@
 ﻿using Azure.Core.Net;
 using System;
+using System.Buffers.Text;
 using System.Text;
 
 namespace Azure.Core
@@ -83,5 +84,131 @@ namespace Azure.Core
         }
 
         static readonly byte[] s_protocolSeparator = Encoding.ASCII.GetBytes("://");
+    }
+
+    // TODO (pri 1): this whole type needs to escape/validate data when it builds
+    // TODO (pri 2): this type should not be calling Encoding.Ascii.GetBytes. It should transcode into the buffer
+    public struct UrlWriter
+    {
+        byte[] _buffer;
+        int _commited;
+        bool _hasQuery;
+
+        public UrlWriter(int capacity)
+        {
+            _buffer = new byte[capacity];
+            _commited = 0;
+            _hasQuery = false;
+        }
+
+        public UrlWriter(Url baseUri, int additionalCapacity)
+            : this(baseUri.Bytes.Length + additionalCapacity)
+        {
+            if (additionalCapacity < 0) throw new ArgumentOutOfRangeException(nameof(additionalCapacity));
+
+            var baseUriBytes = baseUri.Bytes;
+            baseUriBytes.CopyTo(_buffer);
+            _commited = baseUriBytes.Length;
+        }
+
+        public void AppendPath(ReadOnlySpan<byte> path)
+        {
+            if (_hasQuery) throw new InvalidOperationException("query is already written");
+            if (path.Length < 1) return;
+            bool bufferHasSlash = _buffer[_commited - 1] == '/';
+            bool pathHasSlash = path[0] == '/';
+            if (bufferHasSlash) {
+                if (pathHasSlash) path = path.Slice(1);
+                Append(path);
+            }
+            else
+            {
+                if (!pathHasSlash) Append('/');
+                Append(path);
+            }
+        }
+
+        public void AppendPath(string path)
+            => AppendPath(Encoding.ASCII.GetBytes(path));
+
+        public void AppendQuery(ReadOnlySpan<byte> name, ReadOnlySpan<byte> value)
+        {
+            AppendStartQuery(name);
+            Append(value);
+        }
+
+        public void AppendQuery(ReadOnlySpan<byte> name, string value)
+        {
+            AppendStartQuery(name);
+            Append(Encoding.ASCII.GetBytes(value));
+        }
+
+        public void AppendQuery(ReadOnlySpan<byte> name, int value)
+        {
+            AppendStartQuery(name);
+            Append(value);
+        }
+
+        private void AppendStartQuery(ReadOnlySpan<byte> name)
+        {
+            if (_hasQuery)
+            {
+                Append('&');
+            }
+            else
+            {
+                Append('?');
+                _hasQuery = true;
+            }
+            Append(name);
+            Append('=');
+        }
+
+        public Url ToUrl()
+        {
+            var url = new Url((_buffer, _commited));
+            _buffer = Array.Empty<byte>();
+            _commited = 0;
+            return url;
+        }
+
+        void Append(char ascii)
+        {
+            if (!IsAscii(ascii)) throw new ArgumentOutOfRangeException(nameof(ascii));
+            if (_buffer.Length < _commited - 1) Resize();
+            _buffer[_commited++] = (byte)ascii;
+
+            bool IsAscii(char c) => c < 128;
+        }
+
+        void Append(ReadOnlySpan<byte> value)
+        {
+            while (!value.TryCopyTo(Free))
+            {
+                Resize();
+            }
+            _commited += value.Length;
+        }
+
+        void Append(int value)
+        {
+            int written;
+            while (!Utf8Formatter.TryFormat(value, Free, out written))
+            {
+                Resize();
+            }
+            _commited += written;
+        }
+
+        Span<byte> Free => _buffer.AsSpan(_commited);
+        void Resize()
+        {
+            var larger = new byte[_buffer.Length * 2];
+            _buffer.CopyTo(larger, 0);
+            _buffer = larger;
+        }
+
+        public override string ToString()
+            => Encoding.ASCII.GetString(_buffer, 0, _commited);
     }
 }
