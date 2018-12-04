@@ -6,7 +6,8 @@ namespace Azure.Core.Net
     {
         Get,
         Post,
-        Put
+        Put,
+        Delete
     }
 
     public enum ServiceProtocol : byte

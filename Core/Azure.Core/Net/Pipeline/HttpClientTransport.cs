@@ -182,6 +182,8 @@ namespace Azure.Core.Net.Pipeline
                     case ServiceMethod.Get: return HttpMethod.Get;
                     case ServiceMethod.Post: return HttpMethod.Post;
                     case ServiceMethod.Put: return HttpMethod.Put;
+                    case ServiceMethod.Delete: return HttpMethod.Delete;
+
                     default: throw new NotImplementedException();
                 }
             }
