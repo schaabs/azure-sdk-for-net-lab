@@ -1,4 +1,5 @@
 ﻿using Azure.Core.Diagnostics;
+using Azure.Core.Net.Pipeline;
 using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
@@ -11,6 +12,18 @@ namespace Azure.Core.Net
     {
         ServicePolicy[] _pipeline;
         int _pipelineCount;
+
+        public static ServicePipeline Create(string sdkName, string sdkVersion, HttpClientTransport transport = null)
+        {
+            if (transport == null) transport = new HttpClientTransport();
+            var pipeline = new ServicePipeline(
+                transport,
+                new LoggingPolicy(),
+                new RetryPolicy(),
+                new TelemetryPolicy(sdkName, sdkVersion, null)
+            );
+            return pipeline;
+        }
 
         public ReadOnlyMemory<ServicePolicy> Pipeline {
             get {

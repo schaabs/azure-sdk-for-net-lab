@@ -103,7 +103,13 @@ namespace Azure.Core.Net.Pipeline
 
                 if (_content.Length != 0)
                 {
+                    if (RequestContentSource != null) throw new InvalidOperationException("cannot both write to content and specify content source");
                     message.Content = new ReadOnlySequenceContent(_content.AsReadOnly(), Cancellation);
+                    message.Content.Headers.Add("Content-Type", _contentTypeHeaderValue);
+                    message.Content.Headers.Add("Content-Length", _contentLengthHeaderValue);
+                }
+                else if(RequestContentSource != null) {
+                    message.Content = new StreamContent(RequestContentSource);
                     message.Content.Headers.Add("Content-Type", _contentTypeHeaderValue);
                     message.Content.Headers.Add("Content-Length", _contentLengthHeaderValue);
                 }

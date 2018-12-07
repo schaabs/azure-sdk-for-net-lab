@@ -3,6 +3,7 @@ using System;
 using System.Buffers;
 using System.Buffers.Text;
 using System.ComponentModel;
+using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -37,7 +38,10 @@ namespace Azure.Core.Net
         public ContentWriter ContentWriter => new ContentWriter(this);
 
         // TODO (pri 0): this should not be here. It cannot be supported for some streams.
-        protected internal abstract ReadOnlySequence<byte> RequestContent { get; }        
+        protected internal abstract ReadOnlySequence<byte> RequestContent { get; }
+
+        public Stream RequestContentSource { get; set; }
+
         protected internal abstract Memory<byte> GetRequestBuffer(int minimumSize);
         protected internal abstract void CommitRequestBuffer(int size);
         protected internal abstract Task FlushAsync();

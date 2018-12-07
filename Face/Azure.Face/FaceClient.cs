@@ -12,31 +12,33 @@ using System.Threading.Tasks;
 
 namespace Azure.Face
 {
-    public class FaceService
+    public class FaceClient
     {
         ServicePipeline _client;
         Url _baseUrl;
         Header _keyHeader;
 
+        // TODO (pri 1): changing Application ID is not really working
         public readonly FaceServiceOptions Options = new FaceServiceOptions("v1.0");
+        const string SdkName = "Azure.Face";
 
-        public FaceService(string baseUri, string key)
-            : this(baseUri, key, new ServicePipeline(new HttpClientTransport(), new LoggingPolicy(), new RetryPolicy()))
+        public FaceClient(string baseUri, string key)
+            : this(baseUri, key, ServicePipeline.Create(SdkName, "v1.0"))
         { }
 
-        public FaceService(string baseUri, string key, ServicePipeline client) 
+        public FaceClient(string baseUri, string key, ServicePipeline client) 
             : this(new Url(baseUri), key, client)
         { }
 
-        public FaceService(Uri baseUrl, string key)
-            : this(baseUrl.ToString(), key, new ServicePipeline(new HttpClientTransport(), new LoggingPolicy(), new RetryPolicy()))
+        public FaceClient(Uri baseUrl, string key)
+            : this(baseUrl.ToString(), key, ServicePipeline.Create(SdkName, "v1.0"))
         { }
 
-        public FaceService(Uri baseUri, string key, ServicePipeline client)
+        public FaceClient(Uri baseUri, string key, ServicePipeline client)
             : this(baseUri.ToString(), key, client)
         { }
 
-        private FaceService(Url baseUrl, string key, ServicePipeline client)
+        private FaceClient(Url baseUrl, string key, ServicePipeline client)
         {
             _baseUrl = baseUrl;
             _keyHeader = new Header(s_keyHeaderName, key);
@@ -72,9 +74,9 @@ namespace Azure.Face
 
                 await response.ReadContentAsync(contentLength).ConfigureAwait(false);
 
-                Func<ReadOnlySequence<byte>, FaceDetectResult> contentParser = null;
+                Func<ServiceResponse, FaceDetectResult> contentParser = null;
                 if (response.Status == 200) {
-                    contentParser = (ros) => { return FaceDetectResult.Parse(ros); };
+                    contentParser = (rsp) => { return FaceDetectResult.Parse(rsp.Content); };
                 }
                 return new Response<FaceDetectResult>(response, contentParser);
             }
@@ -114,10 +116,10 @@ namespace Azure.Face
 
                 await response.ReadContentAsync(contentLength).ConfigureAwait(false);
 
-                Func<ReadOnlySequence<byte>, FaceDetectResult> parser = null;
+                Func<ServiceResponse, FaceDetectResult> parser = null;
                 if (response.Status == 200)
                 {
-                    parser = (ros) => { return FaceDetectResult.Parse(ros); };
+                    parser = (rsp) => { return FaceDetectResult.Parse(rsp.Content); };
                 }
                 return new Response<FaceDetectResult>(response, parser);
             }

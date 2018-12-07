@@ -24,7 +24,7 @@ namespace Azure.Face.Tests
             if(NoAccountSettings()) return;
             var cancellation = new CancellationTokenSource();
 
-            var service = new FaceService(s_account, s_key);
+            var service = new FaceClient(s_account, s_key);
             var response = await service.DetectAsync(cancellation.Token, @"images\face2.jpg");
 
             Assert.AreEqual("male", response.Result.Gender);
@@ -32,6 +32,7 @@ namespace Azure.Face.Tests
             Assert.Less(10, response.Result.Age);
 
             response.Dispose();
+
         }
 
         [Test]
@@ -40,7 +41,7 @@ namespace Azure.Face.Tests
             if (NoAccountSettings()) return;
             var cancellation = new CancellationTokenSource();
 
-            var service = new FaceService(s_account, s_key);
+            var service = new FaceClient(s_account, s_key);
             var response = await service.DetectAsync(cancellation.Token, new Uri(@"https://upload.wikimedia.org/wikipedia/commons/5/50/Albert_Einstein_%28Nobel%29.png"));
 
             Assert.AreEqual("male", response.Result.Gender);
@@ -63,7 +64,7 @@ namespace Azure.Face.Tests
             pipeline.Add(new RetryPolicy());
             pipeline.Pool = pool;
 
-            var service = new FaceService(s_account, s_key, pipeline);
+            var service = new FaceClient(s_account, s_key, pipeline);
             var response = await service.DetectAsync(cancellation.Token, new Uri(@"https://upload.wikimedia.org/wikipedia/commons/5/50/Albert_Einstein_%28Nobel%29.png"));
 
             Assert.AreEqual(200, response.Status);
@@ -82,7 +83,7 @@ namespace Azure.Face.Tests
             if (NoAccountSettings()) return;
             var cancellation = new CancellationTokenSource();
 
-            var service = new FaceService(s_account, s_key);
+            var service = new FaceClient(s_account, s_key);
             var response = await service.DetectAsync(cancellation.Token, new Uri(@"https://upload.wikimedia.org/wikipedia/commons/5/50/Albert_Einstein_%28Nobel%29.png"));
 
             Assert.IsTrue(response.TryGetHeader("Content-Length", out var value));
@@ -105,7 +106,7 @@ namespace Azure.Face.Tests
             pipeline.Add(new RetryPolicy());
             pipeline.Pool = pool;
 
-            var service = new FaceService(s_account, s_key, pipeline);
+            var service = new FaceClient(s_account, s_key, pipeline);
 
             Response<ContentReader> response = await service.DetectLazyAsync(cancellation.Token, new Uri(@"https://upload.wikimedia.org/wikipedia/commons/5/50/Albert_Einstein_%28Nobel%29.png"));
 

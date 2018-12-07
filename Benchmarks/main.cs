@@ -95,9 +95,9 @@ Date: Thu, 15 Nov 2018 17:49:19 GMT
     #endregion
     static readonly byte[] s_mockResponseBytes = System.Text.Encoding.UTF8.GetBytes(s_mockResponse);
 
-    static FaceService s_httpService = new FaceService(s_account, s_key);
-    static FaceService s_socketService = new FaceService(s_account, s_key, new ServicePipeline(new SocketClientTransport(), new RetryPolicy()));
-    static FaceService s_socketMockService = new FaceService(s_account, s_key, new ServicePipeline(new MockSocketTransport(s_mockResponseBytes), new RetryPolicy()));
+    static FaceClient s_httpService = new FaceClient(s_account, s_key);
+    static FaceClient s_socketService = new FaceClient(s_account, s_key, new ServicePipeline(new SocketClientTransport(), new RetryPolicy()));
+    static FaceClient s_socketMockService = new FaceClient(s_account, s_key, new ServicePipeline(new MockSocketTransport(s_mockResponseBytes), new RetryPolicy()));
     static FaceServiceClient s_sdkService = new FaceServiceClient(s_key, s_account + "v1.0");
 
     public static async Task<int> DetectOverHttpClient()
