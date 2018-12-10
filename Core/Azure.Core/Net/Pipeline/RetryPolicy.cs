@@ -20,7 +20,7 @@ namespace Azure.Core.Net.Pipeline
                 await ProcessNextAsync(pipeline, call).ConfigureAwait(false);
                 if (retrySettings.IsSuccess(call.Response.Status)) return;
                 if (retried++ > retrySettings.MaxRetries) return;
-                call.RequestContentSource.Seek(0, System.IO.SeekOrigin.Begin);
+                if (call.RequestContentSource != null) call.RequestContentSource.Seek(0, System.IO.SeekOrigin.Begin);
             }
         }
 
