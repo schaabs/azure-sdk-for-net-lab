@@ -5,11 +5,11 @@ using System.Threading.Tasks;
 
 namespace Azure.Core.Testing
 {
-    public class TestLoggingPipe : ServicePolicy
+    public class TestLoggingPipe : PipelinePolicy
     {
         StringBuilder _logged = new StringBuilder();
 
-        public override async Task ProcessAsync(ServiceCallContext context, ReadOnlyMemory<ServicePolicy> pipeline)
+        public override async Task ProcessAsync(PipelineCallContext context, ReadOnlyMemory<PipelinePolicy> pipeline)
         {
             _logged.Append($"REQUEST: {context.ToString()}\n");
             await ProcessNextAsync(pipeline, context).ConfigureAwait(false);

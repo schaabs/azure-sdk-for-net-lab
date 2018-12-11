@@ -3,11 +3,11 @@ using System.ComponentModel;
 
 namespace Azure.Core.Net
 {
-    public readonly struct ServiceCallOptions
+    public readonly struct PipelineCallOptions
     {
-        readonly ServiceCallContext _context;
+        readonly PipelineCallContext _context;
 
-        public ServiceCallOptions(ServiceCallContext context)
+        public PipelineCallOptions(PipelineCallContext context)
             => _context = context;
 
         public void SetOption(object key, long value)

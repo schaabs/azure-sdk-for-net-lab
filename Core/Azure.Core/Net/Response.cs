@@ -1,9 +1,9 @@
-﻿using System;
-using System.Buffers;
+﻿using Azure.Core.Net;
+using System;
 using System.ComponentModel;
 using System.Text;
 
-namespace Azure.Core.Net
+namespace Azure.Core
 {
     public struct Response : IDisposable
     {

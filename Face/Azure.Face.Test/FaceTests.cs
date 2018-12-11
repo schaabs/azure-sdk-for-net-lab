@@ -1,11 +1,11 @@
-﻿using Azure.Core.Net;
+﻿using Azure.Core;
+using Azure.Core.Net;
 using Azure.Core.Net.Pipeline;
 using Azure.Core.Testing;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using System;
 using System.Buffers;
-using System.Buffers.Text;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -60,7 +60,7 @@ namespace Azure.Face.Tests
             var cancellation = new CancellationTokenSource();
 
             var socket = new SocketClientTransport();
-            var pipeline = new ServicePipeline(socket);
+            var pipeline = new ClientPipeline(socket);
             pipeline.Add(new RetryPolicy());
             pipeline.Pool = pool;
 
@@ -102,7 +102,7 @@ namespace Azure.Face.Tests
             var cancellation = new CancellationTokenSource();
 
             var socket = new SocketClientTransport(); // TODO (pri 1): streaming does not work with HttpTransport
-            var pipeline = new ServicePipeline(socket);
+            var pipeline = new ClientPipeline(socket);
             pipeline.Add(new RetryPolicy());
             pipeline.Pool = pool;
 

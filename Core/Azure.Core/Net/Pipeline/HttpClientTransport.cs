@@ -10,14 +10,14 @@ using static System.Buffers.Text.Encodings;
 
 namespace Azure.Core.Net.Pipeline
 {
-    public class HttpClientTransport : ServiceTransport
+    public class HttpClientTransport : PipelineTransport
     {
         static readonly HttpClient s_client = new HttpClient();
 
-        public sealed override ServiceCallContext CreateContext(ServicePipeline client, CancellationToken cancellation, ServiceMethod method, Url url)
+        public sealed override PipelineCallContext CreateContext(ClientPipeline client, CancellationToken cancellation, ServiceMethod method, Url url)
             => new HttpClientContext(ref client, cancellation, method, url);
             
-        public sealed override async Task ProcessAsync(ServiceCallContext context)
+        public sealed override async Task ProcessAsync(PipelineCallContext context)
         {
             var httpTransportContext = context as HttpClientContext;
             if (httpTransportContext == null) throw new InvalidOperationException("the context is not compatible with the transport");
@@ -33,7 +33,7 @@ namespace Azure.Core.Net.Pipeline
             return await s_client.SendAsync(httpRequest, cancellation).ConfigureAwait(false);
         }
 
-        class HttpClientContext : ServiceCallContext
+        class HttpClientContext : PipelineCallContext
         {
             List<(string Name, string Value)> _headers = new List<(string, string)>();
             Sequence<byte> _content = new Sequence<byte>();
@@ -44,7 +44,7 @@ namespace Azure.Core.Net.Pipeline
 
             HttpResponseMessage _responseMessage;
             
-            public HttpClientContext(ref ServicePipeline client, CancellationToken cancellation, ServiceMethod method, Url url) 
+            public HttpClientContext(ref ClientPipeline client, CancellationToken cancellation, ServiceMethod method, Url url) 
                 : base(url, cancellation, client.Logger)
             {
                 _content = new Sequence<byte>(client.Pool);

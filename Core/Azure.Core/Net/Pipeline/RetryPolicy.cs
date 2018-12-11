@@ -3,11 +3,11 @@ using System.Threading.Tasks;
 
 namespace Azure.Core.Net.Pipeline
 {
-    public class RetryPolicy : ServicePolicy
+    public class RetryPolicy : PipelinePolicy
     {
         public readonly static Settings DefaultSettings = new Settings();
 
-        public override async Task ProcessAsync(ServiceCallContext call, ReadOnlyMemory<ServicePolicy> pipeline)
+        public override async Task ProcessAsync(PipelineCallContext call, ReadOnlyMemory<PipelinePolicy> pipeline)
         {
             Settings retrySettings = DefaultSettings;
             if (call.Options.TryGetOption(typeof(RetryPolicy), out object option)) {

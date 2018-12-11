@@ -20,7 +20,7 @@ namespace Azure.Core.Testing
             => Logged.Add($"{level} : {message}");
     }
 
-    public class MockTransport : ServiceTransport
+    public class MockTransport : PipelineTransport
     {
         int[] _statusCodes;
         int _index;
@@ -28,10 +28,10 @@ namespace Azure.Core.Testing
         public MockTransport(params int[] statusCodes)
             => _statusCodes = statusCodes;
 
-        public override ServiceCallContext CreateContext(ServicePipeline client, CancellationToken cancellation, ServiceMethod method, Url url)
+        public override PipelineCallContext CreateContext(ClientPipeline client, CancellationToken cancellation, ServiceMethod method, Url url)
             => new Context(ref client, cancellation, method, url);
 
-        public override Task ProcessAsync(ServiceCallContext context)
+        public override Task ProcessAsync(PipelineCallContext context)
         {
             var mockContext = context as Context;
             if (mockContext == null) throw new InvalidOperationException("the context is not compatible with the transport");
@@ -41,7 +41,7 @@ namespace Azure.Core.Testing
             return Task.CompletedTask;
         }
 
-        class Context : ServiceCallContext
+        class Context : PipelineCallContext
         {
             string _uri;
             int _status;
@@ -53,7 +53,7 @@ namespace Azure.Core.Testing
 
             protected override ReadOnlySequence<byte> RequestContent => throw new NotImplementedException();
 
-            public Context(ref ServicePipeline client, CancellationToken cancellation, ServiceMethod method, Url url)
+            public Context(ref ClientPipeline client, CancellationToken cancellation, ServiceMethod method, Url url)
                 : base(url, cancellation, client.Logger)
                 => SetRequestLine(method, url);
 

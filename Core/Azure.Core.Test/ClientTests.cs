@@ -14,7 +14,7 @@ namespace Azure.Core.Tests
             var logging = new TestLoggingPipe();
             var retry = new RetryPolicy();
 
-            var service = new ServicePipeline(transport);
+            var service = new ClientPipeline(transport);
             service.Logger = new MockLogger();
 
             service.Add(logging);

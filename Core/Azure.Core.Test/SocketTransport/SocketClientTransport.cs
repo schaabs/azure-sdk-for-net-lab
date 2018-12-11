@@ -11,19 +11,19 @@ using static System.Buffers.Text.Encodings;
 
 namespace Azure.Core.Net
 {
-    public class SocketClientTransport : ServiceTransport
+    public class SocketClientTransport : PipelineTransport
     {
-        public override ServiceCallContext CreateContext(ServicePipeline client, CancellationToken cancellation, ServiceMethod method, Url url)
+        public override PipelineCallContext CreateContext(ClientPipeline client, CancellationToken cancellation, ServiceMethod method, Url url)
             => new SocketClientContext(ref client, cancellation, url, method);
 
-        public override async Task ProcessAsync(ServiceCallContext context)
+        public override async Task ProcessAsync(PipelineCallContext context)
         {
             var socketTransportContext = context as SocketClientContext;
             if (socketTransportContext == null) throw new InvalidOperationException("the context is not compatible with the transport");
             await socketTransportContext.ProcessAsync().ConfigureAwait(false);
         }
 
-        protected class SocketClientContext : ServiceCallContext
+        protected class SocketClientContext : PipelineCallContext
         {
             // TODO (pri 3): refactor connection cache and GC it.
             static readonly Dictionary<string, (Socket Client, SslStream Stream)> s_cache = new Dictionary<string, (Socket client, SslStream stream)>();
@@ -38,7 +38,7 @@ namespace Azure.Core.Net
             int _contentStart;
             bool _endOfHeadersWritten = false;
 
-            public SocketClientContext(ref ServicePipeline client, CancellationToken cancellation, Url url, ServiceMethod method)
+            public SocketClientContext(ref ClientPipeline client, CancellationToken cancellation, Url url, ServiceMethod method)
                 : base(url, cancellation, client.Logger)
             {
                 _contentBuffer = new Sequence<byte>(client.Pool);
@@ -190,7 +190,7 @@ namespace Azure.Core.Net
 
         public MockSocketTransport(params byte[][] responses) => _responses = responses;
 
-        public override ServiceCallContext CreateContext(ServicePipeline client, CancellationToken cancellation, ServiceMethod method, Url url)
+        public override PipelineCallContext CreateContext(ClientPipeline client, CancellationToken cancellation, ServiceMethod method, Url url)
             => new MockSocketContext(ref client, cancellation, method, url, _responses);
 
         class MockSocketContext : SocketClientContext
@@ -198,7 +198,7 @@ namespace Azure.Core.Net
             byte[][] _responses;
             int _responseNumber;
 
-            public MockSocketContext(ref ServicePipeline client, CancellationToken cancellation, ServiceMethod method, Url url, byte[][] responses)
+            public MockSocketContext(ref ClientPipeline client, CancellationToken cancellation, ServiceMethod method, Url url, byte[][] responses)
                 : base(ref client, cancellation, url, method)
             {
                 _responses = responses;

@@ -7,9 +7,9 @@ namespace Azure.Core.Net
 {
     public struct ContentWriter : IBufferWriter<byte>
     {
-        ServiceCallContext _context;
+        PipelineCallContext _context;
 
-        public ContentWriter(ServiceCallContext context) => _context = context;
+        internal ContentWriter(PipelineCallContext context) => _context = context;
 
         public void Advance(int bytes) => _context.CommitRequestBuffer(bytes);
 

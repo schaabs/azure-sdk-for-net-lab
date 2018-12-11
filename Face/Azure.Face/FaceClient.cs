@@ -14,7 +14,7 @@ namespace Azure.Face
 {
     public class FaceClient
     {
-        ServicePipeline _client;
+        ClientPipeline _client;
         Url _baseUrl;
         Header _keyHeader;
 
@@ -23,22 +23,22 @@ namespace Azure.Face
         const string SdkName = "Azure.Face";
 
         public FaceClient(string baseUri, string key)
-            : this(baseUri, key, ServicePipeline.Create(SdkName, "v1.0"))
+            : this(baseUri, key, ClientPipeline.Create(SdkName, "v1.0"))
         { }
 
-        public FaceClient(string baseUri, string key, ServicePipeline client) 
+        public FaceClient(string baseUri, string key, ClientPipeline client) 
             : this(new Url(baseUri), key, client)
         { }
 
         public FaceClient(Uri baseUrl, string key)
-            : this(baseUrl.ToString(), key, ServicePipeline.Create(SdkName, "v1.0"))
+            : this(baseUrl.ToString(), key, ClientPipeline.Create(SdkName, "v1.0"))
         { }
 
-        public FaceClient(Uri baseUri, string key, ServicePipeline client)
+        public FaceClient(Uri baseUri, string key, ClientPipeline client)
             : this(baseUri.ToString(), key, client)
         { }
 
-        private FaceClient(Url baseUrl, string key, ServicePipeline client)
+        private FaceClient(Url baseUrl, string key, ClientPipeline client)
         {
             _baseUrl = baseUrl;
             _keyHeader = new Header(s_keyHeaderName, key);
@@ -54,7 +54,7 @@ namespace Azure.Face
             if (options == null) options = new FaceDetectOptions();
             Url url = BuildUrl(options);
 
-            ServiceCallContext context = null;
+            PipelineCallContext context = null;
             try
             {
                 context = _client.CreateContext(cancellation, ServiceMethod.Post, url);
@@ -72,11 +72,11 @@ namespace Azure.Face
                     throw new Exception("bad response: no content length header");
                 }
 
-                await response.ReadContentAsync(contentLength).ConfigureAwait(false);
+                await response.Content.ReadAsync(contentLength).ConfigureAwait(false);
 
                 Func<ServiceResponse, FaceDetectResult> contentParser = null;
                 if (response.Status == 200) {
-                    contentParser = (rsp) => { return FaceDetectResult.Parse(rsp.Content); };
+                    contentParser = (rsp) => { return FaceDetectResult.Parse(rsp.Content.Bytes); };
                 }
                 return new Response<FaceDetectResult>(response, contentParser);
             }
@@ -95,7 +95,7 @@ namespace Azure.Face
             if (options == null) options = new FaceDetectOptions();
             Url url = BuildUrl(options);
 
-            ServiceCallContext context = null;
+            PipelineCallContext context = null;
             try
             {
                 context = _client.CreateContext(cancellation, ServiceMethod.Post, url);
@@ -114,12 +114,12 @@ namespace Azure.Face
                     throw new Exception("bad response: no content length header");
                 }
 
-                await response.ReadContentAsync(contentLength).ConfigureAwait(false);
+                await response.Content.ReadAsync(contentLength).ConfigureAwait(false);
 
                 Func<ServiceResponse, FaceDetectResult> parser = null;
                 if (response.Status == 200)
                 {
-                    parser = (rsp) => { return FaceDetectResult.Parse(rsp.Content); };
+                    parser = (rsp) => { return FaceDetectResult.Parse(rsp.Content.Bytes); };
                 }
                 return new Response<FaceDetectResult>(response, parser);
             }
@@ -136,7 +136,7 @@ namespace Azure.Face
             if (options == null) options = new FaceDetectOptions();
             Url url = BuildUrl(options);
 
-            ServiceCallContext context = null;
+            PipelineCallContext context = null;
             try
             {
                 context = _client.CreateContext(cancellation, ServiceMethod.Post, url);
@@ -149,7 +149,7 @@ namespace Azure.Face
 
                 await _client.ProcessAsync(context).ConfigureAwait(false);
 
-                return new Response<ContentReader>(context.Response, new ContentReader(context));
+                return new Response<ContentReader>(context.Response, context.Response.Content);
             }
             catch
             {
@@ -204,7 +204,7 @@ namespace Azure.Face
             return uri;
         }
 
-        static void WriteJsonContent(ServiceCallContext context, Uri image)
+        static void WriteJsonContent(PipelineCallContext context, Uri image)
         {
             var url = new Url(image.ToString());
             int contentLength = s_jsonFront.Length + url.Bytes.Length + s_jsonBack.Length;
@@ -220,7 +220,7 @@ namespace Azure.Face
             writer.Advance(contentLength);
         }
 
-        static async Task WriteStreamContent(CancellationToken cancellation, ServiceCallContext context, string imagePath)
+        static async Task WriteStreamContent(CancellationToken cancellation, PipelineCallContext context, string imagePath)
         {
             using (var stream = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, true))
             {

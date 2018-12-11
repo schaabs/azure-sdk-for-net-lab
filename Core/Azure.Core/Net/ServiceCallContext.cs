@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace Azure.Core.Net
 {
-    public abstract class ServiceCallContext  : IDisposable
+    public abstract class PipelineCallContext  : IDisposable
     {
         internal OptionsStore _options = new OptionsStore();
 
@@ -18,9 +18,9 @@ namespace Azure.Core.Net
 
         public ServiceLogger Logger { get; set; }
 
-        public ServiceCallOptions Options => new ServiceCallOptions(this);
+        public PipelineCallOptions Options => new PipelineCallOptions(this);
 
-        public ServiceCallContext(Url url, CancellationToken cancellation, ServiceLogger logger)
+        public PipelineCallContext(Url url, CancellationToken cancellation, ServiceLogger logger)
         {
             Url = url;
             Cancellation = cancellation;
@@ -74,17 +74,15 @@ namespace Azure.Core.Net
 
     public readonly struct ServiceResponse
     {
-        readonly ServiceCallContext _context;
+        readonly PipelineCallContext _context;
 
-        public ServiceResponse(ServiceCallContext context)
+        public ServiceResponse(PipelineCallContext context)
             => _context = context;
 
         public int Status => _context.Status;
 
-        public ReadOnlySequence<byte> Content => _context.ResponseContent;
-
-        public Task<ReadOnlySequence<byte>> ReadContentAsync(long minimumLength = 0) => _context.ReadContentAsync(minimumLength);
-
+        public ContentReader Content => new ContentReader(_context);
+        
         public bool TryGetHeader(ReadOnlySpan<byte> name, out long value)
         {
             value = default;
@@ -108,7 +106,7 @@ namespace Azure.Core.Net
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override string ToString()
         {
-            var contentText = Encoding.UTF8.GetString(Content.ToArray());
+            var contentText = Encoding.UTF8.GetString(_context.ResponseContent.ToArray());
             return $"{Status} {contentText}";
         }
     }

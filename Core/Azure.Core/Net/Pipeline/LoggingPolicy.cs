@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace Azure.Core.Net.Pipeline
 {
-    public class LoggingPolicy : ServicePolicy
+    public class LoggingPolicy : PipelinePolicy
     {
         static readonly long s_warningThreshold = 3;
         static readonly long s_frequency = Stopwatch.Frequency;
@@ -14,7 +14,7 @@ namespace Azure.Core.Net.Pipeline
         public LoggingPolicy(params int[] excludeErrors)
             => _excludeErrors = excludeErrors;
 
-        public override async Task ProcessAsync(ServiceCallContext context, ReadOnlyMemory<ServicePolicy> pipeline)
+        public override async Task ProcessAsync(PipelineCallContext context, ReadOnlyMemory<PipelinePolicy> pipeline)
         {
             if (context.Logger.IsEnabledFor(TraceLevel.Info)) {
                 LogRequest(context);
@@ -43,10 +43,10 @@ namespace Azure.Core.Net.Pipeline
             }
         }
 
-        private static void LogResponse(ServiceCallContext context)
+        private static void LogResponse(PipelineCallContext context)
             => context.Logger.Log(context);
 
-        private static void LogRequest(ServiceCallContext context)
+        private static void LogRequest(PipelineCallContext context)
             => context.Logger.Log(context);
     }
 }

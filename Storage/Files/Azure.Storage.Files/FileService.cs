@@ -21,19 +21,19 @@ namespace Azure.Storage.Files
 
         readonly Uri _baseUri;
 
-        public ServicePipeline Pipeline { get; }
+        public ClientPipeline Pipeline { get; }
 
         public FileUri(string file)
         {
             _baseUri = new Uri(file);
-            Pipeline = ServicePipeline.Create(SdkName, SdkVersion);
+            Pipeline = ClientPipeline.Create(SdkName, SdkVersion);
         }
 
         public async Task<Response> CreateAsync(CancellationToken cancellation)
         {
             Url url = new Url(_baseUri);
 
-            ServiceCallContext context = null;
+            PipelineCallContext context = null;
             try {
                 context = Pipeline.CreateContext(cancellation, ServiceMethod.Put, url);
 
@@ -57,7 +57,7 @@ namespace Azure.Storage.Files
 
             Url url = new Url(_baseUri);
 
-            ServiceCallContext context = null;
+            PipelineCallContext context = null;
             try {
                 context = Pipeline.CreateContext(cancellation, ServiceMethod.Put, url);
 
@@ -79,7 +79,7 @@ namespace Azure.Storage.Files
         {
             Url url = new Url(_baseUri);
 
-            ServiceCallContext context = null;
+            PipelineCallContext context = null;
             try {
                 context = Pipeline.CreateContext(cancellation, ServiceMethod.Get, url);
 
@@ -145,7 +145,7 @@ namespace Azure.Storage.Files
         public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
             // TODO (pri 1): how do I pass the cancellation token?
-            var result = await _response.ReadContentAsync(1); // TODO (pri 0): this 1 is a hack
+            var result = await _response.Content.ReadAsync(1); // TODO (pri 0): this 1 is a hack
             result.CopyTo(buffer.AsSpan(offset, count));
             // TODO (pri 0): how do I advance?
             return (int)result.Length;

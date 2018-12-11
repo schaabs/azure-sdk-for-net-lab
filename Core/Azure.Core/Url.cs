@@ -3,7 +3,7 @@ using System;
 using System.Buffers.Text;
 using System.Text;
 
-namespace Azure.Core
+namespace Azure.Core.Net
 {
     public readonly struct Url
     {
