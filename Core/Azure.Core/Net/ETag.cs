@@ -31,28 +31,27 @@ namespace Azure.Core.Net
         }
     }
 
-    // TODO (pri 2): I dont like this name
-    public struct ModifiedAccessConditions : IEquatable<ModifiedAccessConditions>
+    public struct ETagFilter : IEquatable<ETagFilter>
     {
         public ETag IfMatch;
         public ETag IfNoneMatch;
 
-        public bool Equals(ModifiedAccessConditions other)
+        public bool Equals(ETagFilter other)
             => IfMatch.Equals(other.IfMatch) && IfNoneMatch.Equals(other.IfNoneMatch);
 
         public override int GetHashCode()
             => IfMatch.GetHashCode() ^ IfNoneMatch.GetHashCode();
 
-        public static bool operator ==(ModifiedAccessConditions left, ModifiedAccessConditions rigth)
+        public static bool operator ==(ETagFilter left, ETagFilter rigth)
             => left.Equals(rigth);
 
-        public static bool operator !=(ModifiedAccessConditions left, ModifiedAccessConditions rigth)
+        public static bool operator !=(ETagFilter left, ETagFilter rigth)
             => !left.Equals(rigth);
                
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override bool Equals(object obj)
         {
-            if (obj is ModifiedAccessConditions other) return this == other;
+            if (obj is ETagFilter other) return this == other;
             return false;
         }
     }
