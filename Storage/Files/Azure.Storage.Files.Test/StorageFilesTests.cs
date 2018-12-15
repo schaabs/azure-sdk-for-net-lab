@@ -8,6 +8,7 @@ using Azure.Core.Testing;
 using System.Net.Http;
 using System.IO;
 using System.Text;
+using Azure.Core.Net;
 
 namespace Azure.Storage.Files.Tests
 {
@@ -65,15 +66,16 @@ namespace Azure.Storage.Files.Tests
 
         private static (FileUri service, TestPool<byte> pool) CreateTestService(MockHttpClientTransport transport)
         {
-            var service = new FileUri(baseUri);
+            var options = new ClientOptions();
             var pool = new TestPool<byte>();
-
             if (transport.Responses.Count == 0) {
                 transport.Responses.Add(HttpStatusCode.NotFound);
                 transport.Responses.Add(HttpStatusCode.OK);
             }
-            service.Pipeline.Transport = transport;
-            service.Pipeline.Pool = pool;
+            options.Transport = transport;
+            options.Pool = pool;
+
+            var service = new FileUri(baseUri, options);
 
             return (service, pool);
         }

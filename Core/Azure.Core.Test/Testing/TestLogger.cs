@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace Azure.Core.Testing
 {
-    public class TestLoggingPipe : PipelinePolicy
+    public class TestLoggingPolicy : PipelinePolicy
     {
         StringBuilder _logged = new StringBuilder();
 

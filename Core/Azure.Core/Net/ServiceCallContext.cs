@@ -20,11 +20,11 @@ namespace Azure.Core.Net
 
         public PipelineCallOptions Options => new PipelineCallOptions(this);
 
-        public PipelineCallContext(Url url, CancellationToken cancellation, ServiceLogger logger)
+        public PipelineCallContext(Url url, CancellationToken cancellation)
         {
             Url = url;
             Cancellation = cancellation;
-            Logger = logger;
+            Logger = new NullLogger();
         }
 
         // request

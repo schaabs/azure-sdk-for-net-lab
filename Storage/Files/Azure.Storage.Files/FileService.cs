@@ -13,20 +13,24 @@ namespace Azure.Storage.Files
     {
         const string SdkName = "Azure.Storage.Files";
         const string SdkVersion = "v3.0demo";
-
+        static Header s_defaultUAHeader = Header.Common.CreateUserAgent(SdkName, SdkVersion, null);
+    
         static readonly Func<ServiceResponse, Stream> s_parser = (response) => {
             return new ResponseStream(response);
             throw new Exception("invalid response content");
         };
 
         readonly Uri _baseUri;
+        ClientOptions _options;
+        ClientPipeline Pipeline;
 
-        public ClientPipeline Pipeline { get; }
-
-        public FileUri(string file)
+        public FileUri(string file, ClientOptions options = default)
         {
+            if (options == default) _options = new ClientOptions();
+            else _options = options;
+
+            Pipeline = _options.Create(SdkName, SdkVersion);
             _baseUri = new Uri(file);
-            Pipeline = ClientPipeline.Create(SdkName, SdkVersion);
         }
 
         public async Task<Response> CreateAsync(CancellationToken cancellation)
@@ -35,7 +39,7 @@ namespace Azure.Storage.Files
 
             PipelineCallContext context = null;
             try {
-                context = Pipeline.CreateContext(cancellation, ServiceMethod.Put, url);
+                context = Pipeline.CreateContext(_options, cancellation, ServiceMethod.Put, url);
 
                 await Pipeline.ProcessAsync(context).ConfigureAwait(false);
 
@@ -59,7 +63,7 @@ namespace Azure.Storage.Files
 
             PipelineCallContext context = null;
             try {
-                context = Pipeline.CreateContext(cancellation, ServiceMethod.Put, url);
+                context = Pipeline.CreateContext(_options, cancellation, ServiceMethod.Put, url);
 
                 context.AddHeader(Header.Common.CreateContentLength(content.Length));
                 context.AddHeader(Header.Common.OctetStreamContentType);
@@ -81,7 +85,7 @@ namespace Azure.Storage.Files
 
             PipelineCallContext context = null;
             try {
-                context = Pipeline.CreateContext(cancellation, ServiceMethod.Get, url);
+                context = Pipeline.CreateContext(_options, cancellation, ServiceMethod.Get, url);
 
                 await Pipeline.ProcessAsync(context).ConfigureAwait(false);
 

@@ -154,16 +154,16 @@ namespace Azure.Core.Net
                 byte[] utf8 = Encoding.ASCII.GetBytes($"Content-Length:{length}\r\n");
                 return new Header() { _utf8 = utf8 };
             }
-        }
-        public static Header CreateHost(ReadOnlySpan<byte> hostName)
-        {
-            var buffer = new byte[Constants.Host.Length + hostName.Length + 3];
-            Constants.Host.CopyTo(buffer);
-            buffer[Constants.Host.Length] = (byte)':';
-            hostName.CopyTo(buffer.AsSpan(Constants.Host.Length + 1));
-            buffer[buffer.Length - 1] = (byte)'\n';
-            buffer[buffer.Length - 2] = (byte)'\r';
-            return new Header() { _utf8 = buffer };
+            public static Header CreateHost(ReadOnlySpan<byte> hostName)
+            {
+                var buffer = new byte[Constants.Host.Length + hostName.Length + 3];
+                Constants.Host.CopyTo(buffer);
+                buffer[Constants.Host.Length] = (byte)':';
+                hostName.CopyTo(buffer.AsSpan(Constants.Host.Length + 1));
+                buffer[buffer.Length - 1] = (byte)'\n';
+                buffer[buffer.Length - 2] = (byte)'\r';
+                return new Header() { _utf8 = buffer };
+            }
         }
     }
 }

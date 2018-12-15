@@ -5,27 +5,25 @@ using NUnit.Framework;
 
 namespace Azure.Core.Tests
 {
-    public class ServiceClientTests
+    public class PipelineTests
     {
         [Test]
         public void Basics() {
 
-            var transport = new MockTransport(500, 1); // status codes sequence
-            var logging = new TestLoggingPipe();
-            var retry = new RetryPolicy();
+            var pipeline = new ClientPipeline(new MockTransport(500, 1));
+            var loggingPolicy = pipeline.AddPolicy(new TestLoggingPolicy());
+            pipeline.AddPolicy(new RetryPolicy());
 
-            var service = new ClientPipeline(transport);
-            service.Logger = new MockLogger();
+            var options = new Options();
+            options.Logger = new MockLogger();
+            
 
-            service.Add(logging);
-            service.Add(retry);
-
-            using (var context = service.CreateContext(cancellation: default, ServiceMethod.Get, new Url("<uri>")))
+            using (var context = pipeline.CreateContext(options, cancellation: default, ServiceMethod.Get, new Url("<uri>")))
             {
                 context.Options.SetOption(typeof(RetryPolicy), new CustomRetryPolicy());
-                service.ProcessAsync(context).Wait();
+                pipeline.ProcessAsync(context).Wait();
                 Assert.True(context.Response.Status == 1);
-                var result = logging.ToString();
+                var result = loggingPolicy.ToString();
                 Assert.AreEqual("REQUEST: Get <uri>\nRESPONSE: 500\nREQUEST: Get <uri>\nRESPONSE: 1\n", result);
             }
         }
@@ -35,5 +33,7 @@ namespace Azure.Core.Tests
             public override int MaxRetries => 5;
             public override bool IsSuccess(int status) => status == 1;
         }
+
+        class Options : ClientOptions { }
     }
 }

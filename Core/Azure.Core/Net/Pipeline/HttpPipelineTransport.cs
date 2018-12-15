@@ -10,16 +10,16 @@ using static System.Buffers.Text.Encodings;
 
 namespace Azure.Core.Net.Pipeline
 {
-    public class HttpClientTransport : PipelineTransport
+    public class HttpPipelineTransport : PipelineTransport
     {
         static readonly HttpClient s_client = new HttpClient();
 
-        public sealed override PipelineCallContext CreateContext(ClientPipeline client, CancellationToken cancellation, ServiceMethod method, Url url)
-            => new HttpClientContext(ref client, cancellation, method, url);
+        public sealed override PipelineCallContext CreateContext(ref ClientOptions options, CancellationToken cancellation, ServiceMethod method, Url url)
+            => new Context(options.Pool, cancellation, method, url);
             
         public sealed override async Task ProcessAsync(PipelineCallContext context)
         {
-            var httpTransportContext = context as HttpClientContext;
+            var httpTransportContext = context as Context;
             if (httpTransportContext == null) throw new InvalidOperationException("the context is not compatible with the transport");
 
             var httpRequest = httpTransportContext.BuildRequestMessage();
@@ -33,7 +33,7 @@ namespace Azure.Core.Net.Pipeline
             return await s_client.SendAsync(httpRequest, cancellation).ConfigureAwait(false);
         }
 
-        class HttpClientContext : PipelineCallContext
+        class Context : PipelineCallContext
         {
             List<(string Name, string Value)> _headers = new List<(string, string)>();
             Sequence<byte> _content = new Sequence<byte>();
@@ -44,10 +44,10 @@ namespace Azure.Core.Net.Pipeline
 
             HttpResponseMessage _responseMessage;
             
-            public HttpClientContext(ref ClientPipeline client, CancellationToken cancellation, ServiceMethod method, Url url) 
-                : base(url, cancellation, client.Logger)
+            public Context(ArrayPool<byte> pool, CancellationToken cancellation, ServiceMethod method, Url url) 
+                : base(url, cancellation)
             {
-                _content = new Sequence<byte>(client.Pool);
+                _content = new Sequence<byte>(pool);
                 _requestMessage = new HttpRequestMessage();
                 _requestMessage.Method = ToHttpClientMethod(method);
                 _requestMessage.RequestUri = new Uri(url.ToString());

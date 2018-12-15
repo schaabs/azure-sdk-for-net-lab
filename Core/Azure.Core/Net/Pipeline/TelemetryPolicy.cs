@@ -7,9 +7,9 @@ namespace Azure.Core.Net.Pipeline
     {
         Header _uaHeader;
 
-        public TelemetryPolicy(string sdkName, string sdkVersion, string applicationId)
+        public TelemetryPolicy(Header userAgentHeader)
         {
-            _uaHeader = Header.Common.CreateUserAgent(sdkName, sdkVersion, applicationId);
+            _uaHeader = userAgentHeader;
         }
 
         public override async Task ProcessAsync(PipelineCallContext context, ReadOnlyMemory<PipelinePolicy> pipeline)

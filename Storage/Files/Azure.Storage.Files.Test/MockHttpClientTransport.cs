@@ -13,7 +13,7 @@ using static System.Buffers.Text.Encodings;
 
 namespace Azure.Configuration.Test
 {
-    abstract class MockHttpClientTransport : HttpClientTransport
+    abstract class MockHttpClientTransport : HttpPipelineTransport
     {
         string s_sdkName = "Azure.Storage.Files";
         string s_sdkVersion = "v3.0demo";

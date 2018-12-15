@@ -2,16 +2,62 @@
 using Azure.Core.Net.Pipeline;
 using System;
 using System.Buffers;
+using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Azure.Core.Net
 {
-    public class ClientPipeline
+    public class ClientOptions
+    {
+        static readonly PipelinePolicy s_defaultLoggingPolicy = new LoggingPolicy();
+        static readonly PipelinePolicy s_defaultRetryPolicy = new RetryPolicy();
+        static readonly PipelineTransport s_defaultTransport = new HttpPipelineTransport();
+        static readonly ServiceLogger s_defaultLogger = new NullLogger();
+
+        public ArrayPool<byte> Pool { get; set; } = ArrayPool<byte>.Shared;
+
+        public ServiceLogger Logger { get; set; } = new NullLogger();
+
+        public PipelineTransport Transport { get; set; } = s_defaultTransport;
+
+        public PipelinePolicy LoggingPolicy { get; set; } = s_defaultLoggingPolicy;
+
+        public PipelinePolicy RetryPolicy { get; set; } = s_defaultRetryPolicy;
+
+        public string ApplicationId { get; set; }
+
+        public ClientPipeline Create(string sdkName, string sdkVersion)
+        {
+            var ua = Header.Common.CreateUserAgent(sdkName, sdkVersion, ApplicationId);
+
+            var pipeline = new ClientPipeline(
+                Transport,
+                LoggingPolicy,
+                RetryPolicy,
+                new TelemetryPolicy(ua)
+            );
+            return pipeline;
+        }
+
+        #region nobody wants to see these
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public override bool Equals(object obj) => base.Equals(obj);
+
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public override int GetHashCode() => base.GetHashCode();
+
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public override string ToString() => base.ToString();
+        #endregion
+    }
+
+    public struct ClientPipeline
     {
         PipelinePolicy[] _pipeline;
         int _pipelineCount;
+
         ReadOnlyMemory<PipelinePolicy> Pipeline {
             get {
                 var index = _pipeline.Length - _pipelineCount;
@@ -26,38 +72,20 @@ namespace Azure.Core.Net
             }
         }
 
-        public ArrayPool<byte> Pool { get; set; }
-
-        public ServiceLogger Logger { get; set; }
-
         public ClientPipeline(PipelineTransport transport)
         {
             _pipeline = new PipelinePolicy[4];
             _pipeline[_pipeline.Length - 1] = transport;
             _pipelineCount = 1;
-            Logger = ServiceLogger.NullLogger;
-            Pool = ArrayPool<byte>.Shared;
         }
 
         public ClientPipeline(PipelineTransport transport, params PipelinePolicy[] policies)
             : this(transport)
         {
-            foreach (var policy in policies) Add(policy);
+            foreach (var policy in policies) AddPolicy(policy);
         }
 
-        public static ClientPipeline Create(string sdkName, string sdkVersion, HttpClientTransport transport = null)
-        {
-            if (transport == null) transport = new HttpClientTransport();
-            var pipeline = new ClientPipeline(
-                transport,
-                new LoggingPolicy(),
-                new RetryPolicy(),
-                new TelemetryPolicy(sdkName, sdkVersion, null)
-            );
-            return pipeline;
-        }
-
-        public void Add(PipelinePolicy policy)
+        public PipelinePolicy AddPolicy(PipelinePolicy policy)
         {
             var index = _pipeline.Length - _pipelineCount - 1;
             if (index < 0)
@@ -69,10 +97,11 @@ namespace Azure.Core.Net
             }
             _pipeline[index] = policy;
             _pipelineCount++;
+            return policy;
         }
 
-        public PipelineCallContext CreateContext(CancellationToken cancellation, ServiceMethod method, Url url)
-            => Transport.CreateContext(this, cancellation, method, url);
+        public PipelineCallContext CreateContext(ClientOptions options, CancellationToken cancellation, ServiceMethod method, Url url)
+            => Transport.CreateContext(ref options, cancellation, method, url);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public async Task ProcessAsync(PipelineCallContext context)
@@ -95,7 +124,7 @@ namespace Azure.Core.Net
     {
         public abstract Task ProcessAsync(PipelineCallContext context);
 
-        public abstract PipelineCallContext CreateContext(ClientPipeline clinet, CancellationToken cancellation, ServiceMethod method, Url url);
+        public abstract PipelineCallContext CreateContext(ref ClientOptions clinet, CancellationToken cancellation, ServiceMethod method, Url url);
 
         public sealed override async Task ProcessAsync(PipelineCallContext context, ReadOnlyMemory<PipelinePolicy> next)
         {

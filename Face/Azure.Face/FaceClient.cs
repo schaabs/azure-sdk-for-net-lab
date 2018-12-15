@@ -14,35 +14,39 @@ namespace Azure.Face
 {
     public class FaceClient
     {
+        const string SdkName = "Azure.Face";
+        const string SdkVersion = "1.0.0";
+
         ClientPipeline _client;
+        ClientOptions _options;
         Url _baseUrl;
         Header _keyHeader;
 
         // TODO (pri 1): changing Application ID is not really working
         public readonly FaceServiceOptions Options = new FaceServiceOptions("v1.0");
-        const string SdkName = "Azure.Face";
 
         public FaceClient(string baseUri, string key)
-            : this(baseUri, key, ClientPipeline.Create(SdkName, "v1.0"))
+            : this(baseUri, key, new ClientOptions())
         { }
 
-        public FaceClient(string baseUri, string key, ClientPipeline client) 
-            : this(new Url(baseUri), key, client)
+        public FaceClient(string baseUri, string key, ClientOptions options) 
+            : this(new Url(baseUri), key, options)
         { }
 
         public FaceClient(Uri baseUrl, string key)
-            : this(baseUrl.ToString(), key, ClientPipeline.Create(SdkName, "v1.0"))
+            : this(baseUrl.ToString(), key, new ClientOptions())
         { }
 
-        public FaceClient(Uri baseUri, string key, ClientPipeline client)
-            : this(baseUri.ToString(), key, client)
+        public FaceClient(Uri baseUri, string key, ClientOptions options)
+            : this(baseUri.ToString(), key, options)
         { }
 
-        private FaceClient(Url baseUrl, string key, ClientPipeline client)
+        private FaceClient(Url baseUrl, string key, ClientOptions options)
         {
+            _options = options;
             _baseUrl = baseUrl;
             _keyHeader = new Header(s_keyHeaderName, key);
-            _client = client;
+            _client = options.Create(SdkName, SdkVersion);
         }
 
         // TODO (pri 2): I think I want to change it such that response details are a property on the deserialized type, but then the deserialization would be eager.
@@ -57,10 +61,9 @@ namespace Azure.Face
             PipelineCallContext context = null;
             try
             {
-                context = _client.CreateContext(cancellation, ServiceMethod.Post, url);
+                context = _client.CreateContext(_options, cancellation, ServiceMethod.Post, url);
                 
                 context.AddHeader(_keyHeader);
-                context.AddHeader(Options.UserAgentHeader);
                 context.AddHeader(Header.Common.JsonContentType);
 
                 WriteJsonContent(context, image);
@@ -98,10 +101,9 @@ namespace Azure.Face
             PipelineCallContext context = null;
             try
             {
-                context = _client.CreateContext(cancellation, ServiceMethod.Post, url);
+                context = _client.CreateContext(_options, cancellation, ServiceMethod.Post, url);
 
                 context.AddHeader(_keyHeader);
-                context.AddHeader(Options.UserAgentHeader);
                 context.AddHeader(Header.Common.OctetStreamContentType);
 
                 // TODO (pri 0): this needs to happen after ProcessAsync as the payload might be very large
@@ -139,10 +141,9 @@ namespace Azure.Face
             PipelineCallContext context = null;
             try
             {
-                context = _client.CreateContext(cancellation, ServiceMethod.Post, url);
+                context = _client.CreateContext(_options, cancellation, ServiceMethod.Post, url);
 
                 context.AddHeader(_keyHeader);
-                context.AddHeader(Options.UserAgentHeader);
                 context.AddHeader(Header.Common.JsonContentType);
 
                 WriteJsonContent(context, image);

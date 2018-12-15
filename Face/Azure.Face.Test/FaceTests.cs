@@ -1,7 +1,5 @@
 ﻿using Azure.Core;
 using Azure.Core.Net;
-using Azure.Core.Net.Pipeline;
-using Azure.Core.Testing;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using System;
@@ -55,16 +53,12 @@ namespace Azure.Face.Tests
         public async Task DetectOverSockets()
         {
             if (NoAccountSettings()) return;
-            var pool = new TestPool<byte>();
             
+            var options = new ClientOptions();
+            options.Transport = new SocketClientTransport();
+            var service = new FaceClient(s_account, s_key, options);
+
             var cancellation = new CancellationTokenSource();
-
-            var socket = new SocketClientTransport();
-            var pipeline = new ClientPipeline(socket);
-            pipeline.Add(new RetryPolicy());
-            pipeline.Pool = pool;
-
-            var service = new FaceClient(s_account, s_key, pipeline);
             var response = await service.DetectAsync(cancellation.Token, new Uri(@"https://upload.wikimedia.org/wikipedia/commons/5/50/Albert_Einstein_%28Nobel%29.png"));
 
             Assert.AreEqual(200, response.Status);
@@ -73,8 +67,6 @@ namespace Azure.Face.Tests
             Assert.Greater(100, response.Result.Age);
             Assert.Less(10, response.Result.Age);
             response.Dispose();
-
-            Assert.AreEqual(0, pool.CurrentlyRented);
         }
 
         [Test]
@@ -98,15 +90,12 @@ namespace Azure.Face.Tests
         public async Task DetectStreaming()
         {
             if (NoAccountSettings()) return;
-            var pool = new TestPool<byte>();
             var cancellation = new CancellationTokenSource();
 
-            var socket = new SocketClientTransport(); // TODO (pri 1): streaming does not work with HttpTransport
-            var pipeline = new ClientPipeline(socket);
-            pipeline.Add(new RetryPolicy());
-            pipeline.Pool = pool;
+            var options = new ClientOptions();
+            options.Transport = new SocketClientTransport(); // TODO (pri 1): streaming does not work with HttpTransport
 
-            var service = new FaceClient(s_account, s_key, pipeline);
+            var service = new FaceClient(s_account, s_key, options);
 
             Response<ContentReader> response = await service.DetectLazyAsync(cancellation.Token, new Uri(@"https://upload.wikimedia.org/wikipedia/commons/5/50/Albert_Einstein_%28Nobel%29.png"));
 
@@ -135,7 +124,6 @@ namespace Azure.Face.Tests
             }
                               
             response.Dispose();
-            Assert.AreEqual(0, pool.CurrentlyRented);
         }
 
         struct DetectResult
