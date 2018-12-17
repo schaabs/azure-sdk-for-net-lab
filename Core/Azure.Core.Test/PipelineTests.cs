@@ -2,6 +2,7 @@
 using Azure.Core.Net.Pipeline;
 using Azure.Core.Testing;
 using NUnit.Framework;
+using System;
 
 namespace Azure.Core.Tests
 {
@@ -18,13 +19,13 @@ namespace Azure.Core.Tests
             options.Logger = new MockLogger();
             
 
-            using (var context = pipeline.CreateContext(options, cancellation: default, ServiceMethod.Get, new Url("<uri>")))
+            using (var context = pipeline.CreateContext(options, cancellation: default, ServiceMethod.Get, new Uri("https://contoso.a.io")))
             {
                 context.Options.SetOption(typeof(RetryPolicy), new CustomRetryPolicy());
                 pipeline.ProcessAsync(context).Wait();
                 Assert.True(context.Response.Status == 1);
                 var result = loggingPolicy.ToString();
-                Assert.AreEqual("REQUEST: Get <uri>\nRESPONSE: 500\nREQUEST: Get <uri>\nRESPONSE: 1\n", result);
+                Assert.AreEqual("REQUEST: Get https://contoso.a.io/\nRESPONSE: 500\nREQUEST: Get https://contoso.a.io/\nRESPONSE: 1\n", result);
             }
         }
 

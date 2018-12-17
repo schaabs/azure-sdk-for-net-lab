@@ -30,7 +30,7 @@ namespace Azure.Face
         { }
 
         public FaceClient(string baseUri, string key, ClientOptions options) 
-            : this(new Url(baseUri), key, options)
+            : this((Url)baseUri, key, options)
         { }
 
         public FaceClient(Uri baseUrl, string key)
@@ -207,7 +207,7 @@ namespace Azure.Face
 
         static void WriteJsonContent(PipelineCallContext context, Uri image)
         {
-            var url = new Url(image.ToString());
+            Url url = image.ToString();
             int contentLength = s_jsonFront.Length + url.Bytes.Length + s_jsonBack.Length;
             context.AddHeader(Header.Common.CreateContentLength(contentLength));
 

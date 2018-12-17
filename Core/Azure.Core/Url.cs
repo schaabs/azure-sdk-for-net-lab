@@ -17,7 +17,7 @@ namespace Azure.Core.Net
 
         public Url(Uri uri) : this(uri.ToString()) { }
 
-        public Url(string url)
+        internal Url(string url)
         {
             _url = Encoding.ASCII.GetBytes(url);
             _count = _url.Length;
@@ -41,7 +41,8 @@ namespace Azure.Core.Net
         public override string ToString()
             => Encoding.ASCII.GetString(_url, 0, _count);
 
-        public static implicit operator Url(string url) => new Url(url);
+        public static implicit operator Url(string uri) => new Url(new Uri(uri));
+        public static implicit operator Url(Uri uri) => new Url(uri);
 
         public void Deconstruct(out ReadOnlySpan<byte> Host, out ReadOnlySpan<byte> Path)
         {
@@ -210,5 +211,21 @@ namespace Azure.Core.Net
 
         public override string ToString()
             => Encoding.ASCII.GetString(_buffer, 0, _commited);
+    }
+
+    public static class UriExtensions
+    {
+        public static void AppendQuery(this UriBuilder builder, string name, string value)
+        {
+            if(!string.IsNullOrEmpty(builder.Query)) {
+                builder.Query = builder.Query + "&" + name + "=" + value;
+            } 
+            else {
+                builder.Query = name + "=" + value;
+            }
+        }
+
+        public static void AppendQuery(this UriBuilder builder, string name, long value)
+            => AppendQuery(builder, name, value.ToString());
     }
 }
