@@ -96,8 +96,8 @@ Date: Thu, 15 Nov 2018 17:49:19 GMT
     static readonly byte[] s_mockResponseBytes = System.Text.Encoding.UTF8.GetBytes(s_mockResponse);
 
     static FaceClient s_httpService = new FaceClient(s_account, s_key);
-    static FaceClient s_socketService = new FaceClient(s_account, s_key, new ClientOptions() { Transport = new SocketClientTransport() });
-    static FaceClient s_socketMockService = new FaceClient(s_account, s_key, new ClientOptions() { Transport = new MockSocketTransport(s_mockResponseBytes) });
+    static FaceClient s_socketService = new FaceClient(s_account, s_key, new PipelineOptions() { Transport = new SocketClientTransport() });
+    static FaceClient s_socketMockService = new FaceClient(s_account, s_key, new PipelineOptions() { Transport = new MockSocketTransport(s_mockResponseBytes) });
     static FaceServiceClient s_sdkService = new FaceServiceClient(s_key, s_account + "v1.0");
 
     public static async Task<int> DetectOverHttpClient()

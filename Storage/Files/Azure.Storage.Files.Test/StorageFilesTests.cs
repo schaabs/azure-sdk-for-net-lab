@@ -66,7 +66,7 @@ namespace Azure.Storage.Files.Tests
 
         private static (FileUri service, TestPool<byte> pool) CreateTestService(MockHttpClientTransport transport)
         {
-            var options = new ClientOptions();
+            var options = new PipelineOptions();
             var pool = new TestPool<byte>();
             if (transport.Responses.Count == 0) {
                 transport.Responses.Add(HttpStatusCode.NotFound);

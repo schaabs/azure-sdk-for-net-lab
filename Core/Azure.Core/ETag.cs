@@ -2,7 +2,7 @@
 using System.ComponentModel;
 using System.Text;
 
-namespace Azure.Core.Net
+namespace Azure.Core
 {
     public struct ETag : IEquatable<ETag>
     {

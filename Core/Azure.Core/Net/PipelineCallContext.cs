@@ -1,4 +1,5 @@
 ﻿using Azure.Core.Diagnostics;
+using Azure.Core.Net.Pipeline;
 using System;
 using System.Buffers;
 using System.Buffers.Text;
@@ -20,7 +21,7 @@ namespace Azure.Core.Net
 
         public PipelineCallOptions Options => new PipelineCallOptions(this);
 
-        public PipelineCallContext(Url url, CancellationToken cancellation)
+        protected PipelineCallContext(Url url, CancellationToken cancellation)
         {
             Url = url;
             Cancellation = cancellation;
@@ -40,7 +41,7 @@ namespace Azure.Core.Net
         // TODO (pri 0): this should not be here. It cannot be supported for some streams.
         protected internal abstract ReadOnlySequence<byte> RequestContent { get; }
 
-        public Stream RequestContentSource { get; set; }
+        internal Stream RequestContentSource { get; set; }
 
         protected internal abstract Memory<byte> GetRequestBuffer(int minimumSize);
         protected internal abstract void CommitRequestBuffer(int size);

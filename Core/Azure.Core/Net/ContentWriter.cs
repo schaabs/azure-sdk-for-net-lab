@@ -1,15 +1,22 @@
 ﻿using System;
 using System.Buffers;
 using System.ComponentModel;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace Azure.Core.Net
 {
-    public struct ContentWriter : IBufferWriter<byte>
+    public readonly struct ContentWriter : IBufferWriter<byte>
     {
-        PipelineCallContext _context;
+        readonly PipelineCallContext _context;
 
         internal ContentWriter(PipelineCallContext context) => _context = context;
+
+        public void WriteFrom(Stream stream)
+        {
+            if (_context.RequestContentSource != null) throw new InvalidOperationException("only one stream can be pumped");
+            _context.RequestContentSource = stream;
+        }
 
         public void Advance(int bytes) => _context.CommitRequestBuffer(bytes);
 

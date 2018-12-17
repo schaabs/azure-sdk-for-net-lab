@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 
 namespace Azure.Core.Net
 {
-    public struct ContentReader
+    public readonly struct ContentReader
     {
-        PipelineCallContext _context;
+        readonly PipelineCallContext _context;
 
         internal ContentReader(PipelineCallContext context) => _context = context;
 
@@ -31,6 +31,7 @@ namespace Azure.Core.Net
         public override string ToString() => base.ToString();
     }
 
+    // TODO (pri 0): implement stream support for content reader
     class ResponseStream : Stream
     {
         private PipelineCallContext _context;

@@ -1,4 +1,5 @@
 ﻿using Azure.Core.Net;
+using Azure.Core.Net.Pipeline;
 using System;
 using System.Text;
 using System.Threading.Tasks;

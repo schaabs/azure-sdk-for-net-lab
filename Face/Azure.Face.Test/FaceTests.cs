@@ -54,7 +54,7 @@ namespace Azure.Face.Tests
         {
             if (NoAccountSettings()) return;
             
-            var options = new ClientOptions();
+            var options = new PipelineOptions();
             options.Transport = new SocketClientTransport();
             var service = new FaceClient(s_account, s_key, options);
 
@@ -92,7 +92,7 @@ namespace Azure.Face.Tests
             if (NoAccountSettings()) return;
             var cancellation = new CancellationTokenSource();
 
-            var options = new ClientOptions();
+            var options = new PipelineOptions();
             options.Transport = new SocketClientTransport(); // TODO (pri 1): streaming does not work with HttpTransport
 
             var service = new FaceClient(s_account, s_key, options);

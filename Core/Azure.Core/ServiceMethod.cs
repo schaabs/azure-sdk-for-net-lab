@@ -9,11 +9,4 @@ namespace Azure.Core.Net
         Put,
         Delete
     }
-
-    public enum ServiceProtocol : byte
-    {
-        Http,
-        Https,
-        Other,
-    }
 }

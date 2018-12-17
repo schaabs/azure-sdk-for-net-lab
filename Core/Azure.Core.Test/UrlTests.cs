@@ -1,5 +1,4 @@
-﻿using Azure.Core.Buffers;
-using Azure.Core.Net;
+﻿using Azure.Core.Net.Pipeline;
 using Azure.Core.Testing;
 using NUnit.Framework;
 using System;

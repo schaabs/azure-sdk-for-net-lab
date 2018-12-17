@@ -14,7 +14,7 @@ namespace Azure.Core.Net.Pipeline
     {
         static readonly HttpClient s_client = new HttpClient();
 
-        public sealed override PipelineCallContext CreateContext(ref ClientOptions options, CancellationToken cancellation, ServiceMethod method, Url url)
+        public sealed override PipelineCallContext CreateContext(ref PipelineOptions options, CancellationToken cancellation, ServiceMethod method, Url url)
             => new Context(options.Pool, cancellation, method, url);
             
         public sealed override async Task ProcessAsync(PipelineCallContext context)
@@ -109,7 +109,7 @@ namespace Azure.Core.Net.Pipeline
                     message.Content.Headers.Add("Content-Length", _contentLengthHeaderValue);
                 }
                 else if(RequestContentSource != null) {
-                    message.Content = new StreamContent(RequestContentSource);
+                    message.Content = new StreamContent(RequestContentSource); 
                     message.Content.Headers.Add("Content-Type", _contentTypeHeaderValue);
                     message.Content.Headers.Add("Content-Length", _contentLengthHeaderValue);
                 }

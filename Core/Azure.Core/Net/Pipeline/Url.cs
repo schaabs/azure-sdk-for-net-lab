@@ -1,15 +1,14 @@
-﻿using Azure.Core.Net;
-using System;
+﻿using System;
 using System.Buffers.Text;
 using System.Text;
 
-namespace Azure.Core.Net
+namespace Azure.Core.Net.Pipeline
 {
     public readonly struct Url
     {
         static readonly byte[] s_http = Encoding.ASCII.GetBytes("http");
         static readonly byte[] s_https = Encoding.ASCII.GetBytes("https");
-                
+
         readonly byte[] _url;
         readonly int _count;
 
@@ -36,8 +35,8 @@ namespace Azure.Core.Net
             _count = slice.length;
         }
 
-        public ReadOnlySpan<byte> Bytes =>_url.AsSpan(0, _count);
-        
+        public ReadOnlySpan<byte> Bytes => _url.AsSpan(0, _count);
+
         public override string ToString()
             => Encoding.ASCII.GetString(_url, 0, _count);
 
@@ -73,8 +72,7 @@ namespace Azure.Core.Net
             else Protocol = ServiceProtocol.Other;
         }
 
-        public ReadOnlySpan<byte> Host
-        {
+        public ReadOnlySpan<byte> Host {
             get {
                 var url = Bytes;
                 int protocolEnd = url.IndexOf(s_protocolSeparator) + s_protocolSeparator.Length;
@@ -122,8 +120,7 @@ namespace Azure.Core.Net
                 if (pathHasSlash) path = path.Slice(1);
                 Append(path);
             }
-            else
-            {
+            else {
                 if (!pathHasSlash) Append('/');
                 Append(path);
             }
@@ -152,12 +149,10 @@ namespace Azure.Core.Net
 
         private void AppendStartQuery(ReadOnlySpan<byte> name)
         {
-            if (_hasQuery)
-            {
+            if (_hasQuery) {
                 Append('&');
             }
-            else
-            {
+            else {
                 Append('?');
                 _hasQuery = true;
             }
@@ -184,8 +179,7 @@ namespace Azure.Core.Net
 
         void Append(ReadOnlySpan<byte> value)
         {
-            while (!value.TryCopyTo(Free))
-            {
+            while (!value.TryCopyTo(Free)) {
                 Resize();
             }
             _commited += value.Length;
@@ -194,8 +188,7 @@ namespace Azure.Core.Net
         void Append(int value)
         {
             int written;
-            while (!Utf8Formatter.TryFormat(value, Free, out written))
-            {
+            while (!Utf8Formatter.TryFormat(value, Free, out written)) {
                 Resize();
             }
             _commited += written;
@@ -211,21 +204,5 @@ namespace Azure.Core.Net
 
         public override string ToString()
             => Encoding.ASCII.GetString(_buffer, 0, _commited);
-    }
-
-    public static class UriExtensions
-    {
-        public static void AppendQuery(this UriBuilder builder, string name, string value)
-        {
-            if(!string.IsNullOrEmpty(builder.Query)) {
-                builder.Query = builder.Query + "&" + name + "=" + value;
-            } 
-            else {
-                builder.Query = name + "=" + value;
-            }
-        }
-
-        public static void AppendQuery(this UriBuilder builder, string name, long value)
-            => AppendQuery(builder, name, value.ToString());
     }
 }

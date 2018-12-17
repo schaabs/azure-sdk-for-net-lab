@@ -1,6 +1,5 @@
 ﻿using Azure.Core;
 using Azure.Core.Net;
-using Azure.Core.Net.Pipeline;
 using System;
 using System.Buffers;
 using System.IO;
@@ -21,25 +20,23 @@ namespace Azure.Storage.Files
         };
 
         readonly Uri _baseUri;
-        ClientOptions _options;
+        PipelineOptions _options;
         ClientPipeline Pipeline;
 
-        public FileUri(string file, ClientOptions options = default)
+        public FileUri(string file, PipelineOptions options = default)
         {
-            if (options == default) _options = new ClientOptions();
+            if (options == default) _options = new PipelineOptions();
             else _options = options;
 
-            Pipeline = _options.Create(SdkName, SdkVersion);
+            Pipeline = ClientPipeline.Create(_options, SdkName, SdkVersion);
             _baseUri = new Uri(file);
         }
 
         public async Task<Response> CreateAsync(CancellationToken cancellation)
         {
-            Url url = new Url(_baseUri);
-
             PipelineCallContext context = null;
             try {
-                context = Pipeline.CreateContext(_options, cancellation, ServiceMethod.Put, url);
+                context = Pipeline.CreateContext(_options, cancellation, ServiceMethod.Put, _baseUri);
 
                 await Pipeline.ProcessAsync(context).ConfigureAwait(false);
 
@@ -59,15 +56,13 @@ namespace Azure.Storage.Files
             if (content.CanRead == false) throw new ArgumentOutOfRangeException(nameof(content));
             if (content.CanSeek == false) throw new ArgumentOutOfRangeException(nameof(content));
 
-            Url url = new Url(_baseUri);
-
             PipelineCallContext context = null;
             try {
-                context = Pipeline.CreateContext(_options, cancellation, ServiceMethod.Put, url);
+                context = Pipeline.CreateContext(_options, cancellation, ServiceMethod.Put, _baseUri);
 
                 context.AddHeader(Header.Common.CreateContentLength(content.Length));
                 context.AddHeader(Header.Common.OctetStreamContentType);
-                context.RequestContentSource = content;
+                context.ContentWriter.WriteFrom(content);
 
                 await Pipeline.ProcessAsync(context).ConfigureAwait(false);
 
@@ -81,11 +76,9 @@ namespace Azure.Storage.Files
 
         public async Task<Response<Stream>> GetAsync(CancellationToken cancellation)
         {
-            Url url = new Url(_baseUri);
-
             PipelineCallContext context = null;
             try {
-                context = Pipeline.CreateContext(_options, cancellation, ServiceMethod.Get, url);
+                context = Pipeline.CreateContext(_options, cancellation, ServiceMethod.Get, _baseUri);
 
                 await Pipeline.ProcessAsync(context).ConfigureAwait(false);
 

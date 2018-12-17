@@ -7,9 +7,9 @@ using System.ComponentModel;
 
 namespace Azure.Core.Net
 {
-    public struct Header : IEquatable<Header>
+    public readonly struct Header : IEquatable<Header>
     {
-        byte[] _utf8;
+        readonly byte[] _utf8;
 
         public Header(ReadOnlySpan<byte> name, ReadOnlySpan<byte> value)
         {
@@ -60,6 +60,8 @@ namespace Azure.Core.Net
             _utf8[length - 2] = (byte)'\r';
             _utf8[length - 1] = (byte)'\n';
         }
+
+        internal Header(byte[] full) => _utf8 = full;
 
         public ReadOnlySpan<byte> Value
         {
@@ -142,18 +144,23 @@ namespace Azure.Core.Net
             // TODO (pri 3): eliminate this allocations
             static readonly string PlatfromInformation = $"({RuntimeInformation.FrameworkDescription}; {RuntimeInformation.OSDescription})";
 
+            // TODO (pri 3): eliminate this allocations
             public static Header CreateUserAgent(string sdkName, string sdkVersion, string applicationId = default)
             {
                 byte[] utf8 = null;
                 if (applicationId == default) utf8 = Encoding.ASCII.GetBytes($"User-Agent:{sdkName}/{sdkVersion} {PlatfromInformation}\r\n");
                 else utf8 = Encoding.ASCII.GetBytes($"User-Agent:{applicationId} {sdkName}/{sdkVersion} {PlatfromInformation}\r\n");
-                return new Header() { _utf8 = utf8 };
+                return new Header(utf8);
             }
+
+            // TODO (pri 3): eliminate this allocations
             public static Header CreateContentLength(long length)
             {
                 byte[] utf8 = Encoding.ASCII.GetBytes($"Content-Length:{length}\r\n");
-                return new Header() { _utf8 = utf8 };
+                return new Header(utf8);
             }
+
+            // TODO (pri 3): eliminate this allocations
             public static Header CreateHost(ReadOnlySpan<byte> hostName)
             {
                 var buffer = new byte[Constants.Host.Length + hostName.Length + 3];
@@ -162,7 +169,7 @@ namespace Azure.Core.Net
                 hostName.CopyTo(buffer.AsSpan(Constants.Host.Length + 1));
                 buffer[buffer.Length - 1] = (byte)'\n';
                 buffer[buffer.Length - 2] = (byte)'\r';
-                return new Header() { _utf8 = buffer };
+                return new Header(buffer);
             }
         }
     }

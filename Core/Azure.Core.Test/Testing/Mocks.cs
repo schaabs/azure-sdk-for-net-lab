@@ -1,6 +1,7 @@
 ﻿using Azure.Core.Buffers;
 using Azure.Core.Diagnostics;
 using Azure.Core.Net;
+using Azure.Core.Net.Pipeline;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -28,7 +29,7 @@ namespace Azure.Core.Testing
         public MockTransport(params int[] statusCodes)
             => _statusCodes = statusCodes;
 
-        public override PipelineCallContext CreateContext(ref ClientOptions options, CancellationToken cancellation, ServiceMethod method, Url url)
+        public override PipelineCallContext CreateContext(ref PipelineOptions options, CancellationToken cancellation, ServiceMethod method, Url url)
             => new Context(ref options, cancellation, method, url);
 
         public override Task ProcessAsync(PipelineCallContext context)
@@ -53,7 +54,7 @@ namespace Azure.Core.Testing
 
             protected override ReadOnlySequence<byte> RequestContent => throw new NotImplementedException();
 
-            public Context(ref ClientOptions client, CancellationToken cancellation, ServiceMethod method, Url url)
+            public Context(ref PipelineOptions client, CancellationToken cancellation, ServiceMethod method, Url url)
                 : base(url, cancellation)
                 => SetRequestLine(method, url);
 
@@ -73,12 +74,12 @@ namespace Azure.Core.Testing
 
             protected override bool TryGetHeader(ReadOnlySpan<byte> name, out ReadOnlySpan<byte> value)
             {
-                throw new NotImplementedException();
+                value = default;
+                return false;
             }
 
             public override void AddHeader(Header header)
             {
-                throw new NotImplementedException();
             }
 
             protected override void DisposeResponseContent(long bytes)

@@ -18,7 +18,7 @@ namespace Azure.Face
         const string SdkVersion = "1.0.0";
 
         ClientPipeline _client;
-        ClientOptions _options;
+        PipelineOptions _options;
         Url _baseUrl;
         Header _keyHeader;
 
@@ -26,27 +26,27 @@ namespace Azure.Face
         public readonly FaceServiceOptions Options = new FaceServiceOptions("v1.0");
 
         public FaceClient(string baseUri, string key)
-            : this(baseUri, key, new ClientOptions())
+            : this(baseUri, key, new PipelineOptions())
         { }
 
-        public FaceClient(string baseUri, string key, ClientOptions options) 
+        public FaceClient(string baseUri, string key, PipelineOptions options) 
             : this((Url)baseUri, key, options)
         { }
 
         public FaceClient(Uri baseUrl, string key)
-            : this(baseUrl.ToString(), key, new ClientOptions())
+            : this(baseUrl.ToString(), key, new PipelineOptions())
         { }
 
-        public FaceClient(Uri baseUri, string key, ClientOptions options)
+        public FaceClient(Uri baseUri, string key, PipelineOptions options)
             : this(baseUri.ToString(), key, options)
         { }
 
-        private FaceClient(Url baseUrl, string key, ClientOptions options)
+        private FaceClient(Url baseUrl, string key, PipelineOptions options)
         {
             _options = options;
             _baseUrl = baseUrl;
             _keyHeader = new Header(s_keyHeaderName, key);
-            _client = options.Create(SdkName, SdkVersion);
+            _client = ClientPipeline.Create(options, SdkName, SdkVersion);
         }
 
         // TODO (pri 2): I think I want to change it such that response details are a property on the deserialized type, but then the deserialization would be eager.
@@ -56,7 +56,7 @@ namespace Azure.Face
         public async Task<Response<FaceDetectResult>> DetectAsync(CancellationToken cancellation, Uri image, FaceDetectOptions options)
         {
             if (options == null) options = new FaceDetectOptions();
-            Url url = BuildUrl(options);
+            Uri url = BuildUrl(options);
 
             PipelineCallContext context = null;
             try
@@ -96,7 +96,7 @@ namespace Azure.Face
         public async Task<Response<FaceDetectResult>> DetectAsync(CancellationToken cancellation, string imagePath, FaceDetectOptions options)
         {
             if (options == null) options = new FaceDetectOptions();
-            Url url = BuildUrl(options);
+            Uri url = BuildUrl(options);
 
             PipelineCallContext context = null;
             try
@@ -106,8 +106,7 @@ namespace Azure.Face
                 context.AddHeader(_keyHeader);
                 context.AddHeader(Header.Common.OctetStreamContentType);
 
-                // TODO (pri 0): this needs to happen after ProcessAsync as the payload might be very large
-                await WriteStreamContent(cancellation, context, imagePath).ConfigureAwait(false);
+                SetContentStream(context, imagePath);
 
                 await _client.ProcessAsync(context).ConfigureAwait(false);
 
@@ -136,7 +135,7 @@ namespace Azure.Face
         public async Task<Response<ContentReader>> DetectLazyAsync(CancellationToken cancellation, Uri image, FaceDetectOptions options = default)
         {
             if (options == null) options = new FaceDetectOptions();
-            Url url = BuildUrl(options);
+            Uri url = BuildUrl(options);
 
             PipelineCallContext context = null;
             try
@@ -194,7 +193,7 @@ namespace Azure.Face
             #endregion
         }
 
-        Url BuildUrl(FaceDetectOptions options)
+        Uri BuildUrl(FaceDetectOptions options)
         {
             var uriBuilder = new Utf8StringBuilder(256);
             uriBuilder.Append(_baseUrl.Bytes);
@@ -202,7 +201,7 @@ namespace Azure.Face
             uriBuilder.Append(s_detectMethod);
             options.BuildRequestParameters(ref uriBuilder);
             var uri = new Url(uriBuilder.Build());
-            return uri;
+            return new Uri(uri.ToString());
         }
 
         static void WriteJsonContent(PipelineCallContext context, Uri image)
@@ -221,21 +220,14 @@ namespace Azure.Face
             writer.Advance(contentLength);
         }
 
-        static async Task WriteStreamContent(CancellationToken cancellation, PipelineCallContext context, string imagePath)
+        static void SetContentStream(PipelineCallContext context, string imagePath)
         {
-            using (var stream = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, true))
-            {
-                var writer = context.ContentWriter;
-                int read;
-                do
-                {
-                    Memory<byte> buffer = writer.GetMemory(4096 * 1024);
-                    read = await stream.ReadAsync(buffer, cancellation);
-                    writer.Advance(read);
-                } while (read > 0);
-
-                context.AddHeader(Header.Common.CreateContentLength(stream.Length));
-            }
+            byte[] temp = new byte[4096];
+            var stream = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, true);
+            
+            var writer = context.ContentWriter;
+            writer.WriteFrom(stream);
+            context.AddHeader(Header.Common.CreateContentLength(stream.Length));
         }
 
         #region string table
