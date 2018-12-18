@@ -1,8 +1,10 @@
 ﻿using Azure.Core.Buffers;
+using System;
 using System.Buffers;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -30,5 +32,7 @@ namespace Azure.Core.Net
             return true;
         }
 
+        public override string ToString()
+            => Encoding.UTF8.GetString(_sequence.Slice(Math.Min(1000, _sequence.Length)).ToArray()) + "...";
     }
 }

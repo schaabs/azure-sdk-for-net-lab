@@ -1,7 +1,6 @@
 ﻿using Azure.Core.Buffers;
 using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.Net.Http;
 using System.Text;
 using System.Threading;
@@ -29,17 +28,14 @@ namespace Azure.Core.Net.Pipeline
         }
 
         protected virtual async Task<HttpResponseMessage> ProcessCoreAsync(CancellationToken cancellation, HttpRequestMessage httpRequest)
-        {
-            return await s_client.SendAsync(httpRequest, cancellation).ConfigureAwait(false);
-        }
+            => await s_client.SendAsync(httpRequest, cancellation).ConfigureAwait(false);
 
         class Context : PipelineCallContext
         {
-            List<(string Name, string Value)> _headers = new List<(string, string)>();
-            Sequence<byte> _content = new Sequence<byte>();
-
             HttpRequestMessage _requestMessage;
-            string _contentTypeHeaderValue; // TODO (pri 2): move this to _headers
+
+            Sequence<byte> _content = new Sequence<byte>(); // TODO (pri 1): content should be either stream or Sequence
+            string _contentTypeHeaderValue;
             string _contentLengthHeaderValue;
 
             HttpResponseMessage _responseMessage;
@@ -96,13 +92,11 @@ namespace Azure.Core.Net.Pipeline
                 // A copy of a message needs to be made because HttpClient does not allow sending the same message twice,
                 // and so the retry logic fails.
                 var message = new HttpRequestMessage(_requestMessage.Method, _requestMessage.RequestUri);
-                foreach (var header in _requestMessage.Headers)
-                {
+                foreach (var header in _requestMessage.Headers) {
                     message.Headers.Add(header.Key, header.Value);
                 }
 
-                if (_content.Length != 0)
-                {
+                if (_content.Length != 0) {
                     if (RequestContentSource != null) throw new InvalidOperationException("cannot both write to content and specify content source");
                     message.Content = new ReadOnlySequenceContent(_content.AsReadOnly(), Cancellation);
                     message.Content.Headers.Add("Content-Type", _contentTypeHeaderValue);
@@ -174,7 +168,6 @@ namespace Azure.Core.Net.Pipeline
 
             public override void Dispose()
             {
-                _headers.Clear();
                 _content.Dispose();
                 base.Dispose();
             }

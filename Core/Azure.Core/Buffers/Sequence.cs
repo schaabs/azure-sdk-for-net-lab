@@ -171,7 +171,7 @@ namespace Azure.Core.Buffers
             var bytes = _buffer as byte[];
             if (bytes != null)
             {
-                return Encoding.UTF8.GetString(bytes, 0, _commited);
+                return Encoding.UTF8.GetString(bytes, 0, Math.Min(_commited, 1000)) + "...";
             }
             return $"{Length}";
         }
