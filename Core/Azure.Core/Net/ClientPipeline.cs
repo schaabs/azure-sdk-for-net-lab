@@ -70,11 +70,7 @@ namespace Azure.Core.Net
         }
 
         public PipelineCallContext CreateContext(PipelineOptions options, CancellationToken cancellation, ServiceMethod method, Uri uri)
-            => Transport.CreateContext(ref options, cancellation, method, new Url(uri));
-
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public PipelineCallContext CreateContext(PipelineOptions options, CancellationToken cancellation, ServiceMethod method, Url url)
-            => Transport.CreateContext(ref options, cancellation, method, url);
+            => Transport.CreateContext(ref options, cancellation, method, uri);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public async Task ProcessAsync(PipelineCallContext context)

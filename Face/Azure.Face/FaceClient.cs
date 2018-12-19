@@ -19,7 +19,7 @@ namespace Azure.Face
 
         ClientPipeline _client;
         PipelineOptions _options;
-        Url _baseUrl;
+        Uri _baseUrl;
         Header _keyHeader;
 
         // TODO (pri 1): changing Application ID is not really working
@@ -30,18 +30,14 @@ namespace Azure.Face
         { }
 
         public FaceClient(string baseUri, string key, PipelineOptions options) 
-            : this((Url)baseUri, key, options)
+            : this(new Uri(baseUri), key, options)
         { }
 
         public FaceClient(Uri baseUrl, string key)
             : this(baseUrl.ToString(), key, new PipelineOptions())
         { }
 
-        public FaceClient(Uri baseUri, string key, PipelineOptions options)
-            : this(baseUri.ToString(), key, options)
-        { }
-
-        private FaceClient(Url baseUrl, string key, PipelineOptions options)
+        private FaceClient(Uri baseUrl, string key, PipelineOptions options)
         {
             _options = options;
             _baseUrl = baseUrl;
@@ -161,12 +157,12 @@ namespace Azure.Face
         public struct FaceServiceOptions
         {
             internal Header UserAgentHeader;
-            internal byte[] ApiVersion;
+            internal string ApiVersion;
             string _applicationId;
 
             public FaceServiceOptions(string apiVersion)
             {
-                ApiVersion = Encoding.ASCII.GetBytes(apiVersion);
+                ApiVersion = apiVersion;
                 _applicationId = default;
                 UserAgentHeader = Header.Common.CreateUserAgent(sdkName: "Azure-CognitiveServices-Face", sdkVersion: "1.0.0", _applicationId);
             }
@@ -195,28 +191,24 @@ namespace Azure.Face
 
         Uri BuildUrl(FaceDetectOptions options)
         {
-            var uriBuilder = new Utf8StringBuilder(256);
-            uriBuilder.Append(_baseUrl.Bytes);
-            uriBuilder.Append(Options.ApiVersion);
-            uriBuilder.Append(s_detectMethod);
-            options.BuildRequestParameters(ref uriBuilder);
-            var uri = new Url(uriBuilder.Build());
-            return new Uri(uri.ToString());
+            var ub = new UriBuilder(_baseUrl);
+            ub.Path = ub.Path + Options.ApiVersion + s_detectMethod;
+            options.BuildRequestParameters(ub);
+            return ub.Uri;
         }
 
         static void WriteJsonContent(PipelineCallContext context, Uri image)
         {
-            Url url = image.ToString();
-            int contentLength = s_jsonFront.Length + url.Bytes.Length + s_jsonBack.Length;
+            string url = image.ToString();
+            byte[] urlBytes = Encoding.ASCII.GetBytes(url);
+            int contentLength = s_jsonFront.Length + urlBytes.Length + s_jsonBack.Length;
             context.AddHeader(Header.Common.CreateContentLength(contentLength));
 
-            // write content
-            // TODO (pri 3): this should use a writer
             var writer = context.ContentWriter;
             var buffer = writer.GetSpan(contentLength);
             s_jsonFront.CopyTo(buffer);
-            url.Bytes.CopyTo(buffer.Slice(s_jsonFront.Length));
-            s_jsonBack.CopyTo(buffer.Slice(s_jsonFront.Length + url.Bytes.Length));
+            urlBytes.CopyTo(buffer.Slice(s_jsonFront.Length));
+            s_jsonBack.CopyTo(buffer.Slice(s_jsonFront.Length + urlBytes.Length));
             writer.Advance(contentLength);
         }
 
@@ -233,7 +225,7 @@ namespace Azure.Face
         #region string table
         // this won't be needed once we have UTF8 string literals
         readonly static byte[] s_keyHeaderName = Encoding.ASCII.GetBytes("Ocp-Apim-Subscription-Key");
-        readonly static byte[] s_detectMethod = Encoding.ASCII.GetBytes("/detect?");
+        readonly static string s_detectMethod = "/detect";
         readonly static byte[] s_jsonFront = Encoding.ASCII.GetBytes(@"{""url"": """);
         readonly static byte[] s_jsonBack = Encoding.ASCII.GetBytes(@"""}");
         static readonly byte[] s_contentLength = Encoding.ASCII.GetBytes("Content-Length");

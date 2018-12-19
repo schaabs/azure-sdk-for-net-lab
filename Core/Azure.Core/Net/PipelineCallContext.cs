@@ -22,15 +22,15 @@ namespace Azure.Core.Net
 
         public PipelineCallOptions Options => new PipelineCallOptions(this);
 
-        protected PipelineCallContext(Url url, CancellationToken cancellation)
+        protected PipelineCallContext(Uri uri, CancellationToken cancellation)
         {
-            Url = url;
+            Uri = uri;
             Cancellation = cancellation;
             Logger = new NullLogger();
         }
 
         // request
-        public readonly Url Url;
+        public readonly Uri Uri;
 
         public abstract void AddHeader(Header header);
 

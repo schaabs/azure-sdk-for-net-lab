@@ -7,6 +7,7 @@ using System.IO;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using static System.Buffers.Text.Encodings;
@@ -15,8 +16,8 @@ namespace Azure.Core.Net
 {
     public class SocketClientTransport : PipelineTransport
     {
-        public override PipelineCallContext CreateContext(ref PipelineOptions options, CancellationToken cancellation, ServiceMethod method, Url url)
-            => new SocketClientContext(ref options, cancellation, url, method);
+        public override PipelineCallContext CreateContext(ref PipelineOptions options, CancellationToken cancellation, ServiceMethod method, Uri uri)
+            => new SocketClientContext(ref options, cancellation, uri, method);
 
         public override async Task ProcessAsync(PipelineCallContext context)
         {
@@ -40,15 +41,17 @@ namespace Azure.Core.Net
             int _contentStart;
             bool _endOfHeadersWritten = false;
 
-            public SocketClientContext(ref PipelineOptions options, CancellationToken cancellation, Url url, ServiceMethod method)
-                : base(url, cancellation)
+            public SocketClientContext(ref PipelineOptions options, CancellationToken cancellation, Uri uri, ServiceMethod method)
+                : base(uri, cancellation)
             {
                 _contentBuffer = new Sequence<byte>(options.Pool);
                 _requestBuffer = new Sequence<byte>(options.Pool);
 
-                var (_, host, path) = url;
-                Http.WriteRequestLine(ref _requestBuffer, ServiceProtocol.Https, method, path);
-                AddHeader(Header.Common.CreateHost(host));
+                var host = uri.Host;
+                var path = uri.PathAndQuery;
+
+                Http.WriteRequestLine(ref _requestBuffer, ServiceProtocol.Https, method, Encoding.ASCII.GetBytes(path));
+                AddHeader("Host", host);
             }
 
             internal virtual async Task<Sequence<byte>> ReceiveAsync(Sequence<byte> buffer)
@@ -85,8 +88,8 @@ namespace Azure.Core.Net
             protected virtual async Task SendAsync(ReadOnlySequence<byte> buffer)
             {
                 if (_socket == null) // i.e. this is not a retry  
-                {             
-                    string host = Utf8.ToString(Url.Host);
+                {
+                    string host = Uri.Host;;
                     if (s_cache.TryGetValue(host, out var connection))
                     {
                         // TODO (pri 1): this needs to use a real pool and take the connection out, as of now it's very not thread safe
@@ -194,16 +197,16 @@ namespace Azure.Core.Net
 
         public MockSocketTransport(params byte[][] responses) => _responses = responses;
 
-        public override PipelineCallContext CreateContext(ref PipelineOptions client, CancellationToken cancellation, ServiceMethod method, Url url)
-            => new MockSocketContext(ref client, cancellation, method, url, _responses);
+        public override PipelineCallContext CreateContext(ref PipelineOptions client, CancellationToken cancellation, ServiceMethod method, Uri uri)
+            => new MockSocketContext(ref client, cancellation, method, uri, _responses);
 
         class MockSocketContext : SocketClientContext
         {
             byte[][] _responses;
             int _responseNumber;
 
-            public MockSocketContext(ref PipelineOptions options, CancellationToken cancellation, ServiceMethod method, Url url, byte[][] responses)
-                : base(ref options, cancellation, url, method)
+            public MockSocketContext(ref PipelineOptions options, CancellationToken cancellation, ServiceMethod method, Uri uri, byte[][] responses)
+                : base(ref options, cancellation, uri, method)
             {
                 _responses = responses;
             }

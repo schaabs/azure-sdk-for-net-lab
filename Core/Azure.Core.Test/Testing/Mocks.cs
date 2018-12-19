@@ -30,7 +30,7 @@ namespace Azure.Core.Testing
         public MockTransport(params int[] statusCodes)
             => _statusCodes = statusCodes;
 
-        public override PipelineCallContext CreateContext(ref PipelineOptions options, CancellationToken cancellation, ServiceMethod method, Url url)
+        public override PipelineCallContext CreateContext(ref PipelineOptions options, CancellationToken cancellation, ServiceMethod method, Uri url)
             => new Context(ref options, cancellation, method, url);
 
         public override Task ProcessAsync(PipelineCallContext context)
@@ -57,18 +57,18 @@ namespace Azure.Core.Testing
 
             protected override Stream ResponseStream => throw new NotImplementedException();
 
-            public Context(ref PipelineOptions client, CancellationToken cancellation, ServiceMethod method, Url url)
-                : base(url, cancellation)
-                => SetRequestLine(method, url);
+            public Context(ref PipelineOptions client, CancellationToken cancellation, ServiceMethod method, Uri uri)
+                : base(uri, cancellation)
+                => SetRequestLine(method, uri);
 
             protected override Task<ReadOnlySequence<byte>> ReadContentAsync(long minimumLength)
                 => Task.FromResult(ReadOnlySequence<byte>.Empty);
 
             public void SetStatus(int status) => _status = status;
 
-            void SetRequestLine(ServiceMethod method, Url url)
+            void SetRequestLine(ServiceMethod method, Uri uri)
             {
-                _uri = url.ToString();
+                _uri = uri.ToString();
                 _method = method;
             }
 

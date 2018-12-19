@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Text;
+using Azure.Core;
 
 namespace Azure.Face
 {
@@ -43,34 +44,9 @@ namespace Azure.Face
         static readonly byte[] s_exposure = Encoding.ASCII.GetBytes("exposure,");
         static readonly byte[] s_noise = Encoding.ASCII.GetBytes("noise,");
 
-        internal void BuildRequestParameters(ref Utf8StringBuilder builder)
+        internal void BuildRequestParameters(UriBuilder builder)
         {
-            builder.Append(s_returFaceId);
-            builder.Append(FaceId);
-            builder.Append(s_returnFaceLandmarks);
-            builder.Append(FaceLandmarks);
-
-            if (Age | Gender | HeadPose | Smile | FacialHair | Glasses | Emotion |
-                Hair | Makeup | Occlusion | Accessories | Blur | Exposure | Noise)
-            {
-                builder.Append(s_returnFaceAttributes);
-                if (Age) builder.Append(s_age);
-                if (Gender) builder.Append(s_gender);
-                if (HeadPose) builder.Append(s_headPose);
-                if (Smile) builder.Append(s_smile);
-                if (FacialHair) builder.Append(s_facialHair);
-                if (Glasses) builder.Append(s_glasses);
-                if (Emotion) builder.Append(s_emotion);
-
-                if (Hair) builder.Append(s_hair);
-                if (Makeup) builder.Append(s_makeup);
-                if (Occlusion) builder.Append(s_occlusion);
-                if (Accessories) builder.Append(s_accessories);
-                if (Blur) builder.Append(s_blur);
-                if (Exposure) builder.Append(s_exposure);
-                if (Noise) builder.Append(s_noise);
-                builder.Written = builder.Written - 1; // removes last comma
-            }
+            builder.Query = $"returnFaceId={FaceId}&returnFaceAttributes=age,gender";
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
@@ -81,57 +57,5 @@ namespace Azure.Face
 
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override string ToString() => base.ToString();
-    }
-    struct Utf8StringBuilder
-    {
-        byte[] _buffer;
-
-        public int Written { get; set; }
-
-        public Utf8StringBuilder(int size)
-        {
-            _buffer = new byte[size];
-            Written = 0;
-        }
-
-        public void Append(byte[] utf8)
-        {
-            if (_buffer.Length < Written + utf8.Length)
-            {
-                var largerBuffer = new byte[_buffer.Length * 2];
-                _buffer.AsSpan(0, Written).CopyTo(largerBuffer);
-                _buffer = largerBuffer;
-            }
-            utf8.CopyTo(_buffer, Written);
-            Written += utf8.Length;
-        }
-
-        public void Append(ReadOnlySpan<byte> utf8)
-        {
-            if (_buffer.Length < Written + utf8.Length)
-            {
-                var largerBuffer = new byte[_buffer.Length * 2];
-                _buffer.AsSpan(0, Written).CopyTo(largerBuffer);
-                _buffer = largerBuffer;
-            }
-            utf8.CopyTo(_buffer.AsSpan(Written));
-            Written += utf8.Length;
-        }
-
-        static readonly byte[] s_true = Encoding.ASCII.GetBytes("true");
-        static readonly byte[] s_false = Encoding.ASCII.GetBytes("false");
-        public void Append(bool value)
-        {
-            if (value) Append(s_true);
-            else Append(s_false);
-        }
-
-        public (byte[] Buffer, int Length) Build()
-        {
-            var result = (_buffer, Written);
-            _buffer = Array.Empty<byte>();
-            Written = 0;
-            return result;
-        }
     }
 }

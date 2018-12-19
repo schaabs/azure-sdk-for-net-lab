@@ -16,8 +16,8 @@ namespace Azure.Core.Net.Pipeline
     {
         static readonly HttpClient s_client = new HttpClient();
 
-        public sealed override PipelineCallContext CreateContext(ref PipelineOptions options, CancellationToken cancellation, ServiceMethod method, Url url)
-            => new Context(options.Pool, cancellation, method, url);
+        public sealed override PipelineCallContext CreateContext(ref PipelineOptions options, CancellationToken cancellation, ServiceMethod method, Uri uri)
+            => new Context(options.Pool, cancellation, method, uri);
             
         public sealed override async Task ProcessAsync(PipelineCallContext context)
         {
@@ -43,17 +43,15 @@ namespace Azure.Core.Net.Pipeline
 
             HttpResponseMessage _responseMessage;
             
-            public Context(ArrayPool<byte> pool, CancellationToken cancellation, ServiceMethod method, Url url) 
-                : base(url, cancellation)
+            public Context(ArrayPool<byte> pool, CancellationToken cancellation, ServiceMethod method, Uri uri) 
+                : base(uri, cancellation)
             {
                 _content = new Sequence<byte>(pool);
                 _requestMessage = new HttpRequestMessage();
                 _requestMessage.Method = ToHttpClientMethod(method);
-                _requestMessage.RequestUri = new Uri(url.ToString());
+                _requestMessage.RequestUri = uri;
 
-
-                var (_, host, pathAndQuery) = url;
-                string hostString = Utf8.ToString(host);
+                string hostString = uri.Host;
                 AddHeader("Host", hostString);
             }
 
@@ -61,18 +59,8 @@ namespace Azure.Core.Net.Pipeline
             public override void AddHeader(Header header)
             {
                 var valueString = Utf8.ToString(header.Value);
-                var name = header.Name;
-
-                if (name.SequenceEqual(Header.Constants.ContentType)) {
-                    _contentTypeHeaderValue = valueString;
-                }
-                else if (name.SequenceEqual(Header.Constants.ContentLength)) {
-                    _contentLengthHeaderValue = valueString;
-                }
-                else {
-                    var nameString = Utf8.ToString(header.Name);
-                    _requestMessage.Headers.Add(nameString, valueString);
-                }
+                var nameString = Utf8.ToString(header.Name);
+                AddHeader(nameString, valueString);
             }
 
             public override void AddHeader(string name, string value)
@@ -80,18 +68,15 @@ namespace Azure.Core.Net.Pipeline
                 if (name.Equals("Content-Type", StringComparison.InvariantCulture)) {
                     _contentTypeHeaderValue = value;
                 }
-                if (name.Equals("Content-Length", StringComparison.InvariantCulture)) {
+                else if (name.Equals("Content-Length", StringComparison.InvariantCulture))
+                {
                     _contentLengthHeaderValue = value;
                 }
-                if(name.Equals("Authorization", StringComparison.InvariantCulture)) {
-                    // TODO (pri 1): what do we do with this hack?
-                    var indexOfSpace = value.IndexOf(' ');
-                    var scheme = value.Substring(0, indexOfSpace);
-                    value = value.Substring(indexOfSpace + 1);
-                    _requestMessage.Headers.Authorization = new AuthenticationHeaderValue(scheme, value);
-                }
                 else {
-                    _requestMessage.Headers.Add(name, value);
+                    if(!_requestMessage.Headers.TryAddWithoutValidation(name, value))
+                    {
+                        throw new NotImplementedException();
+                    }
                 }
             }
 
