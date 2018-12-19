@@ -3,6 +3,7 @@ using Azure.Core.Net.Pipeline;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.IO;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
@@ -142,6 +143,8 @@ namespace Azure.Core.Net
             protected override int Status => _statusCode;
 
             protected override ReadOnlySequence<byte> RequestContent => _contentBuffer.AsReadOnly();
+
+            protected override Stream ResponseStream => throw new NotImplementedException();
 
             protected override bool TryGetHeader(ReadOnlySpan<byte> name, out ReadOnlySpan<byte> value)
             {

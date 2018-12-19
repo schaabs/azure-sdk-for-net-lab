@@ -1,7 +1,9 @@
 ﻿using Azure.Core.Buffers;
 using System;
 using System.Buffers;
+using System.IO;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,6 +11,7 @@ using static System.Buffers.Text.Encodings;
 
 namespace Azure.Core.Net.Pipeline
 {
+    // TODO (pri 2): implement chunked encoding
     public class HttpPipelineTransport : PipelineTransport
     {
         static readonly HttpClient s_client = new HttpClient();
@@ -47,6 +50,11 @@ namespace Azure.Core.Net.Pipeline
                 _requestMessage = new HttpRequestMessage();
                 _requestMessage.Method = ToHttpClientMethod(method);
                 _requestMessage.RequestUri = new Uri(url.ToString());
+
+
+                var (_, host, pathAndQuery) = url;
+                string hostString = Utf8.ToString(host);
+                AddHeader("Host", hostString);
             }
 
             #region Request
@@ -75,6 +83,13 @@ namespace Azure.Core.Net.Pipeline
                 if (name.Equals("Content-Length", StringComparison.InvariantCulture)) {
                     _contentLengthHeaderValue = value;
                 }
+                if(name.Equals("Authorization", StringComparison.InvariantCulture)) {
+                    // TODO (pri 1): what do we do with this hack?
+                    var indexOfSpace = value.IndexOf(' ');
+                    var scheme = value.Substring(0, indexOfSpace);
+                    value = value.Substring(indexOfSpace + 1);
+                    _requestMessage.Headers.Authorization = new AuthenticationHeaderValue(scheme, value);
+                }
                 else {
                     _requestMessage.Headers.Add(name, value);
                 }
@@ -93,7 +108,9 @@ namespace Azure.Core.Net.Pipeline
                 // and so the retry logic fails.
                 var message = new HttpRequestMessage(_requestMessage.Method, _requestMessage.RequestUri);
                 foreach (var header in _requestMessage.Headers) {
-                    message.Headers.Add(header.Key, header.Value);
+                    if(!message.Headers.TryAddWithoutValidation(header.Key, header.Value)) {
+                        throw new Exception("could not add header " + header.ToString());
+                    }
                 }
 
                 if (_content.Length != 0) {
@@ -147,6 +164,8 @@ namespace Azure.Core.Net.Pipeline
             protected internal override ReadOnlySequence<byte> ResponseContent => _content.AsReadOnly();
 
             protected internal override ReadOnlySequence<byte> RequestContent => _content.AsReadOnly();
+
+            protected internal override Stream ResponseStream => _responseMessage.Content.ReadAsStreamAsync().Result;
 
             protected internal async override Task<ReadOnlySequence<byte>> ReadContentAsync(long minimumLength)
             { 

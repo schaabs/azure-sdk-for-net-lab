@@ -8,6 +8,7 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using static System.Buffers.Text.Encodings;
 
 namespace Azure.Core.Net
 {
@@ -61,6 +62,8 @@ namespace Azure.Core.Net
 
         protected internal abstract ReadOnlySequence<byte> ResponseContent { get; }
 
+        protected internal abstract Stream ResponseStream { get; }
+
         public virtual void Dispose() => _options.Clear();
 
         [EditorBrowsable(EditorBrowsableState.Never)]
@@ -95,6 +98,16 @@ namespace Azure.Core.Net
 
         public bool TryGetHeader(ReadOnlySpan<byte> name, out ReadOnlySpan<byte> value)
             => _context.TryGetHeader(name, out value);
+
+        public bool TryGetHeader(ReadOnlySpan<byte> name, out string value)
+        {
+            if(TryGetHeader(name, out ReadOnlySpan<byte> span)) {
+                value = Utf8.ToString(span);
+                return true;
+            }
+            value = default;
+            return false;
+        }
 
         public void Dispose() => _context.Dispose();
 

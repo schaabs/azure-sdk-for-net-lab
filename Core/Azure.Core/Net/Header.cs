@@ -115,6 +115,9 @@ namespace Azure.Core.Net
         {
             static readonly byte[] s_host = Encoding.ASCII.GetBytes("Host");
             public static ReadOnlySpan<byte> Host => s_host;
+           
+            static readonly byte[] s_transferEncoding = Encoding.ASCII.GetBytes("Transfer-Encoding");
+            public static ReadOnlySpan<byte> TransferEncoding => s_transferEncoding;
 
             static readonly byte[] s_contentLength = Encoding.ASCII.GetBytes("Content-Length");
             public static ReadOnlySpan<byte> ContentLength => s_contentLength;

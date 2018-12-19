@@ -6,6 +6,7 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -53,6 +54,8 @@ namespace Azure.Core.Testing
             protected override ReadOnlySequence<byte> ResponseContent => throw new NotImplementedException();
 
             protected override ReadOnlySequence<byte> RequestContent => throw new NotImplementedException();
+
+            protected override Stream ResponseStream => throw new NotImplementedException();
 
             public Context(ref PipelineOptions client, CancellationToken cancellation, ServiceMethod method, Url url)
                 : base(url, cancellation)
