@@ -22,7 +22,7 @@ namespace Azure.Core.Net
 
         public Memory<byte> GetMemory(int sizeHint = 0) => _context.GetRequestBuffer(sizeHint);
 
-        public Span<byte> GetSpan(int sizeHint = 0) => GetMemory(sizeHint).Span;
+        public Span<byte> GetSpan(int sizeHint = 0) => GetMemory(sizeHint).Span; // TODO (pri2): should there be a way to get span directly?
 
         public ReadOnlySequence<byte> Written => _context.RequestContent;
 

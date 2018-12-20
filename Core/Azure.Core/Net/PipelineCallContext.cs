@@ -1,5 +1,4 @@
 ﻿using Azure.Core.Diagnostics;
-using Azure.Core.Net.Pipeline;
 using System;
 using System.Buffers;
 using System.Buffers.Text;
