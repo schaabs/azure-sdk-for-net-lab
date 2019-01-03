@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <LangVersion>7.2</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.ProjectOxford.Face" Version="1.4.0" />
+    <PackageReference Include="System.Memory" Version="4.5.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core\Azure.Core\Azure.Core.csproj" />
+    <ProjectReference Include="..\Face\Azure.Face\Azure.Face.csproj" />
+    <ProjectReference Include="..\Core\Azure.Core.Test\Azure.Core.Test.csproj" />
+  </ItemGroup>
+
+</Project>
