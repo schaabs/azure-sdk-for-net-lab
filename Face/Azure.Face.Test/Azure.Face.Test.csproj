@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk" ToolsVersion="15.0">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <LangVersion>7.2</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="nunit" Version="$(NUnitPackageVersion)" />
+    <PackageReference Include="NUnit3TestAdapter" Version="$(NUnit3TestAdapterPackageVersion)" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.9.0" />
+    <PackageReference Include="System.Memory" Version="4.5.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Core\Azure.Core\Azure.Core.csproj">
+      <Project>{FEC0AE57-E241-46DB-B7C7-9181F28E1D3F}</Project>
+      <Name>Azure.Core</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Azure.Face\Azure.Face.csproj" />
+    <ProjectReference Include="..\..\Core\Azure.Core.Test\Azure.Core.Test.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="images\face1.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="images\face2.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+</Project>
