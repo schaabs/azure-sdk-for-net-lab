@@ -62,7 +62,7 @@ namespace Azure.Storage.Files
 
                 context.AddHeader(Header.Common.CreateContentLength(content.Length));
                 context.AddHeader(Header.Common.OctetStreamContentType);
-                context.ContentWriter.WriteFrom(content);
+                context.AddContent(PipelineContent.Create(content));
 
                 await Pipeline.ProcessAsync(context).ConfigureAwait(false);
 

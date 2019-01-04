@@ -53,8 +53,6 @@ namespace Azure.Core.Testing
 
             protected override ReadOnlySequence<byte> ResponseContent => throw new NotImplementedException();
 
-            protected override ReadOnlySequence<byte> RequestContent => throw new NotImplementedException();
-
             protected override Stream ResponseStream => throw new NotImplementedException();
 
             public Context(ref PipelineOptions client, CancellationToken cancellation, ServiceMethod method, Uri uri)
@@ -89,17 +87,7 @@ namespace Azure.Core.Testing
             {
             }
 
-            protected override Memory<byte> GetRequestBuffer(int minimumSize)
-            {
-                throw new NotImplementedException();
-            }
-
-            protected override void CommitRequestBuffer(int size)
-            {
-                throw new NotImplementedException();
-            }
-
-            protected override Task FlushAsync()
+            public override void AddContent(PipelineContent content)
             {
                 throw new NotImplementedException();
             }

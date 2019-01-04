@@ -14,7 +14,7 @@ namespace Azure.Core.Net
 
         public ArrayPool<byte> Pool { get; set; } = ArrayPool<byte>.Shared;
 
-        public ServiceLogger Logger { get; set; } = new NullLogger();
+        public ServiceLogger Logger { get; set; } = s_defaultLogger;
 
         public PipelineTransport Transport { get; set; } = s_defaultTransport;
 

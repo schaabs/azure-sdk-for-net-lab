@@ -61,8 +61,7 @@ namespace Azure.Face
                 
                 context.AddHeader(_keyHeader);
                 context.AddHeader(Header.Common.JsonContentType);
-
-                WriteJsonContent(context, image);
+                context.AddContent(new FaceContent(image, context));
 
                 await _client.ProcessAsync(context).ConfigureAwait(false);
 
@@ -140,8 +139,7 @@ namespace Azure.Face
 
                 context.AddHeader(_keyHeader);
                 context.AddHeader(Header.Common.JsonContentType);
-
-                WriteJsonContent(context, image);
+                context.AddContent(new FaceContent(image, context));
 
                 await _client.ProcessAsync(context).ConfigureAwait(false);
 
@@ -197,28 +195,44 @@ namespace Azure.Face
             return ub.Uri;
         }
 
-        static void WriteJsonContent(PipelineCallContext context, Uri image)
+        class FaceContent : PipelineContent
         {
-            string url = image.ToString();
-            byte[] urlBytes = Encoding.ASCII.GetBytes(url);
-            int contentLength = s_jsonFront.Length + urlBytes.Length + s_jsonBack.Length;
-            context.AddHeader(Header.Common.CreateContentLength(contentLength));
+            Uri _image;
+            PipelineCallContext _context;
+            static int s_len = @"{""url"": """.Length + @"""}".Length;
 
-            var writer = context.ContentWriter;
-            var buffer = writer.GetSpan(contentLength);
-            s_jsonFront.CopyTo(buffer);
-            urlBytes.CopyTo(buffer.Slice(s_jsonFront.Length));
-            s_jsonBack.CopyTo(buffer.Slice(s_jsonFront.Length + urlBytes.Length));
-            writer.Advance(contentLength);
+            public FaceContent(Uri image, PipelineCallContext context)
+            {
+                _image = image;
+                _context = context;
+            }
+
+            public override bool TryComputeLength(out long length)
+            {
+                length = s_len + _image.ToString().Length;
+                return true;
+            }
+
+            public async override Task WriteTo(Stream stream)
+            {
+                var writer = new StreamWriter(stream);
+                writer.Write(@"{""url"": """);
+                writer.Write(_image);
+                writer.Write(@"""}");
+                await writer.FlushAsync();
+                await stream.FlushAsync();
+            }
+
+            public override void Dispose()
+            {
+            }
         }
 
         static void SetContentStream(PipelineCallContext context, string imagePath)
         {
             byte[] temp = new byte[4096];
             var stream = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, true);
-            
-            var writer = context.ContentWriter;
-            writer.WriteFrom(stream);
+            context.AddContent(PipelineContent.Create(stream));
             context.AddHeader(Header.Common.CreateContentLength(stream.Length));
         }
 
@@ -226,10 +240,7 @@ namespace Azure.Face
         // this won't be needed once we have UTF8 string literals
         readonly static byte[] s_keyHeaderName = Encoding.ASCII.GetBytes("Ocp-Apim-Subscription-Key");
         readonly static string s_detectMethod = "/detect";
-        readonly static byte[] s_jsonFront = Encoding.ASCII.GetBytes(@"{""url"": """);
-        readonly static byte[] s_jsonBack = Encoding.ASCII.GetBytes(@"""}");
         static readonly byte[] s_contentLength = Encoding.ASCII.GetBytes("Content-Length");
-        static readonly byte[] s_contentType = Encoding.ASCII.GetBytes("Content-Type");
         #endregion
         #region nobody wants to see these
         [EditorBrowsable(EditorBrowsableState.Never)]

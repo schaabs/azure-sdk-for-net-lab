@@ -36,16 +36,7 @@ namespace Azure.Core.Net
         public virtual void AddHeader(string name, string value)
             => AddHeader(new Header(name, value));
 
-        public ContentWriter ContentWriter => new ContentWriter(this);
-
-        // TODO (pri 0): this should not be here. It cannot be supported for some streams.
-        protected internal abstract ReadOnlySequence<byte> RequestContent { get; }
-
-        internal Stream RequestContentSource { get; set; }
-
-        protected internal abstract Memory<byte> GetRequestBuffer(int minimumSize);
-        protected internal abstract void CommitRequestBuffer(int size);
-        protected internal abstract Task FlushAsync();
+        public abstract void AddContent(PipelineContent content);
 
         // response
         public ServiceResponse Response => new ServiceResponse(this);
@@ -121,6 +112,52 @@ namespace Azure.Core.Net
         {
             var contentText = Encoding.UTF8.GetString(_context.ResponseContent.ToArray());
             return $"{Status} {contentText}";
+        }
+    }
+
+    public abstract class PipelineContent : IDisposable
+    {
+        public static PipelineContent Create(Stream stream) => new StreamContent(stream);
+
+        public abstract Task WriteTo(Stream stream);
+
+        public abstract bool TryComputeLength(out long length);
+
+        public abstract void Dispose();
+
+        class StreamContent : PipelineContent
+        {
+            Stream _stream;
+
+            public StreamContent(Stream stream)
+            {
+                if (!stream.CanSeek) throw new ArgumentException("stream must be seekable", nameof(stream));
+                _stream = stream;
+            }
+
+            public sealed override bool TryComputeLength(out long length)
+            {
+                if (_stream.CanSeek)
+                {
+                    length = _stream.Length;
+                    return true;
+                }
+                length = 0;
+                return false;
+            }
+
+            public sealed async override Task WriteTo(Stream stream)
+            {
+                _stream.Seek(0, SeekOrigin.Begin);
+                await _stream.CopyToAsync(stream);
+                await stream.FlushAsync();
+            }
+
+            public override void Dispose()
+            {
+                _stream?.Dispose();
+                _stream = null;
+            }
         }
     }
 }

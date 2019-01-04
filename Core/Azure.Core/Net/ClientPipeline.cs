@@ -1,8 +1,5 @@
-﻿using Azure.Core.Diagnostics;
-using Azure.Core.Net.Pipeline;
+﻿using Azure.Core.Net.Pipeline;
 using System;
-using System.Buffers;
-using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -69,6 +66,8 @@ namespace Azure.Core.Net
             return pipeline;
         }
 
+        // TODO (pri 0): this should not take Uri (and possibly other paramets). The Uri should be specified after the method is called. 
+        // This will allow us to add new AddUri overloads later taking a different representation for URI.
         public PipelineCallContext CreateContext(PipelineOptions options, CancellationToken cancellation, ServiceMethod method, Uri uri)
             => Transport.CreateContext(ref options, cancellation, method, uri);
 

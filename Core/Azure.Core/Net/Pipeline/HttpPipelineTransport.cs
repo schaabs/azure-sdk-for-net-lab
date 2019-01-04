@@ -2,6 +2,7 @@
 using System;
 using System.Buffers;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -35,22 +36,22 @@ namespace Azure.Core.Net.Pipeline
 
         class Context : PipelineCallContext
         {
-            HttpRequestMessage _requestMessage;
-
-            Sequence<byte> _content = new Sequence<byte>(); // TODO (pri 1): content should be either stream or Sequence
             string _contentTypeHeaderValue;
             string _contentLengthHeaderValue;
+            PipelineContent _requestContent;
+            HttpRequestMessage _requestMessage;
 
+            Sequence<byte> _responseContent = default;
             HttpResponseMessage _responseMessage;
             
             public Context(ArrayPool<byte> pool, CancellationToken cancellation, ServiceMethod method, Uri uri) 
                 : base(uri, cancellation)
             {
-                _content = new Sequence<byte>(pool);
                 _requestMessage = new HttpRequestMessage();
                 _requestMessage.Method = ToHttpClientMethod(method);
                 _requestMessage.RequestUri = uri;
 
+                _responseContent = new Sequence<byte>(pool);
                 string hostString = uri.Host;
                 AddHeader("Host", hostString);
             }
@@ -80,12 +81,8 @@ namespace Azure.Core.Net.Pipeline
                 }
             }
 
-            protected internal override Memory<byte> GetRequestBuffer(int minimumSize) => _content.GetMemory(minimumSize);
-
-            protected internal override void CommitRequestBuffer(int size) => _content.Advance(size);
-
-            protected internal override Task FlushAsync()
-                => Task.CompletedTask;
+            public override void AddContent(PipelineContent content)
+                => _requestContent = content;
 
             internal HttpRequestMessage BuildRequestMessage()
             {
@@ -98,22 +95,29 @@ namespace Azure.Core.Net.Pipeline
                     }
                 }
 
-                if (_content.Length != 0) {
-                    if (RequestContentSource != null) throw new InvalidOperationException("cannot both write to content and specify content source");
-                    message.Content = new ReadOnlySequenceContent(_content.AsReadOnly(), Cancellation);
+                if(_requestContent != null)
+                {
+                    message.Content = new PipelineContentAdapter(_requestContent);
                     message.Content.Headers.Add("Content-Type", _contentTypeHeaderValue);
-                    message.Content.Headers.Add("Content-Length", _contentLengthHeaderValue);
-                }
-                else if(RequestContentSource != null) {
-                    message.Content = new StreamContent(RequestContentSource); 
-                    message.Content.Headers.Add("Content-Type", _contentTypeHeaderValue);
-                    message.Content.Headers.Add("Content-Length", _contentLengthHeaderValue);
+                    if(_contentLengthHeaderValue!=null) message.Content.Headers.Add("Content-Length", _contentLengthHeaderValue);
                 }
 
                 return message;
             }
             #endregion
 
+            class PipelineContentAdapter : HttpContent
+            {
+                PipelineContent _content;
+                public PipelineContentAdapter(PipelineContent content)
+                    => _content = content;
+
+                protected async override Task SerializeToStreamAsync(Stream stream, TransportContext context)
+                    => await _content.WriteTo(stream);
+
+                protected override bool TryComputeLength(out long length)
+                    => _content.TryComputeLength(out length);
+            }
             #region Response
             internal void ProcessResponseMessage(HttpResponseMessage response) { _responseMessage = response; }
 
@@ -146,21 +150,19 @@ namespace Azure.Core.Net.Pipeline
                 return true;
             }
 
-            protected internal override ReadOnlySequence<byte> ResponseContent => _content.AsReadOnly();
-
-            protected internal override ReadOnlySequence<byte> RequestContent => _content.AsReadOnly();
+            protected internal override ReadOnlySequence<byte> ResponseContent => _responseContent.AsReadOnly();
 
             protected internal override Stream ResponseStream => _responseMessage.Content.ReadAsStreamAsync().Result;
 
             protected internal async override Task<ReadOnlySequence<byte>> ReadContentAsync(long minimumLength)
-            { 
-                _content.Dispose();
+            {
+                _responseContent.Dispose();
                 var contentStream = await _responseMessage.Content.ReadAsStreamAsync().ConfigureAwait(false);
                 while (true)
                 {
-                    var length = _content.Length;
-                    if (length >= minimumLength) return _content.AsReadOnly(); // TODO (pri 3): is this ok when minimumLength is zero?
-                    _content = await contentStream.ReadAsync(_content, Cancellation).ConfigureAwait(false);
+                    var length = _responseContent.Length;
+                    if (length >= minimumLength) return _responseContent.AsReadOnly(); // TODO (pri 3): is this ok when minimumLength is zero?
+                    _responseContent = await contentStream.ReadAsync(_responseContent, Cancellation).ConfigureAwait(false);
                 }
             }
 
@@ -172,7 +174,8 @@ namespace Azure.Core.Net.Pipeline
 
             public override void Dispose()
             {
-                _content.Dispose();
+                _requestContent?.Dispose();
+                _responseContent.Dispose();
                 base.Dispose();
             }
 

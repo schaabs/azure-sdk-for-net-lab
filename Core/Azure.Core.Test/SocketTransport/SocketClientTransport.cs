@@ -35,7 +35,9 @@ namespace Azure.Core.Net
             SslStream _sslStream;
 
             Sequence<byte> _requestBuffer;
-            Sequence<byte> _contentBuffer;
+            Sequence<byte> _responseBuffer;
+            PipelineContent _requestContent;
+
             int _statusCode;
             int _headersStart;
             int _contentStart;
@@ -44,7 +46,7 @@ namespace Azure.Core.Net
             public SocketClientContext(ref PipelineOptions options, CancellationToken cancellation, Uri uri, ServiceMethod method)
                 : base(uri, cancellation)
             {
-                _contentBuffer = new Sequence<byte>(options.Pool);
+                _responseBuffer = new Sequence<byte>(options.Pool);
                 _requestBuffer = new Sequence<byte>(options.Pool);
 
                 var host = uri.Host;
@@ -59,16 +61,20 @@ namespace Azure.Core.Net
 
             public async Task ProcessAsync()
             {
+                if (_requestContent.TryComputeLength(out long len))
+                {
+                    AddHeader(Header.Common.CreateContentLength(len));
+                }
+
                 // this is needed so the retry does not add this again
-                if(!_endOfHeadersWritten) AddEndOfHeaders();
-                var merged = Sequence<byte>.Merge(ref _requestBuffer, ref _contentBuffer);
-                await SendAsync(merged.AsReadOnly()).ConfigureAwait(false);
-                merged.Dispose();
+                if (!_endOfHeadersWritten) AddEndOfHeaders();
+                               
+                await SendAsync(_requestBuffer.AsReadOnly()).ConfigureAwait(false);
      
                 while (true)
                 {
-                    _contentBuffer = await ReceiveAsync(_contentBuffer).ConfigureAwait(false);
-                    OperationStatus result = Http.ParseResponse(_contentBuffer, out _statusCode, out _headersStart, out _contentStart);
+                    _responseBuffer = await ReceiveAsync(_responseBuffer).ConfigureAwait(false);
+                    OperationStatus result = Http.ParseResponse(_responseBuffer, out _statusCode, out _headersStart, out _contentStart);
                     if (result == OperationStatus.Done) break;
                     if (result == OperationStatus.NeedMoreData) continue;
                     throw new Exception("invalid response");
@@ -79,9 +85,9 @@ namespace Azure.Core.Net
             {
                 while (true)
                 {
-                    var length = _contentBuffer.Length - _contentStart;
+                    var length = _responseBuffer.Length - _contentStart;
                     if (length >= minimumLength) return ResponseContent;
-                    _contentBuffer = await ReceiveAsync(_contentBuffer).ConfigureAwait(false);
+                    _responseBuffer = await ReceiveAsync(_responseBuffer).ConfigureAwait(false);
                 }
             }
 
@@ -109,6 +115,8 @@ namespace Azure.Core.Net
                     }
                 }
                 await _sslStream.WriteAsync(buffer, Cancellation).ConfigureAwait(false);
+                await _requestContent.WriteTo(_sslStream);
+                await _sslStream.FlushAsync();
             }
 
             public sealed override void AddHeader(Header header)
@@ -127,6 +135,9 @@ namespace Azure.Core.Net
                 }
             }
 
+            public override void AddContent(PipelineContent content)
+                => _requestContent = content;
+
             protected override void DisposeResponseContent(long bytes)
             {
                 // TODO (pri 2): this should dispose already read segments
@@ -140,12 +151,10 @@ namespace Azure.Core.Net
                 _endOfHeadersWritten = true;
             }
 
-            ReadOnlySequence<byte> Headers => _contentBuffer.AsReadOnly().Slice(_headersStart, _contentStart - Http.CRLF.Length);
-            protected override ReadOnlySequence<byte> ResponseContent => _contentBuffer.AsReadOnly().Slice(_contentStart);
+            ReadOnlySequence<byte> Headers => _responseBuffer.AsReadOnly().Slice(_headersStart, _contentStart - Http.CRLF.Length);
+            protected override ReadOnlySequence<byte> ResponseContent => _responseBuffer.AsReadOnly().Slice(_contentStart);
 
             protected override int Status => _statusCode;
-
-            protected override ReadOnlySequence<byte> RequestContent => _contentBuffer.AsReadOnly();
 
             protected override Stream ResponseStream => throw new NotImplementedException();
 
@@ -168,26 +177,17 @@ namespace Azure.Core.Net
                 return true;
             }
 
-            protected sealed override Memory<byte> GetRequestBuffer(int minimumSize)
-                => _contentBuffer.GetMemory(minimumSize);
-
-            protected sealed override void CommitRequestBuffer(int size) => _contentBuffer.Advance(size);
-
             public sealed override void Dispose()
             {
+                _requestContent?.Dispose();
                 _requestBuffer.Dispose();
-                _contentBuffer.Dispose();
+                _responseBuffer.Dispose();
                 _sslStream = null;
                 _socket = null;
                 base.Dispose();
             }
 
-            public sealed override string ToString() => _contentBuffer.ToString();
-
-            protected override Task FlushAsync()
-            {
-                throw new NotImplementedException();
-            }
+            public sealed override string ToString() => _responseBuffer.ToString();
         }
     }
 
