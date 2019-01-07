@@ -46,7 +46,7 @@ namespace Azure.Core.Net
 
         protected internal abstract bool TryGetHeader(ReadOnlySpan<byte> name, out ReadOnlySpan<byte> value);
 
-        protected internal abstract Stream ResponseContent { get; }
+        protected internal abstract Stream ResponseContentStream { get; }
 
         public virtual void Dispose() => _options.Clear();
 
@@ -69,7 +69,7 @@ namespace Azure.Core.Net
 
         public int Status => _context.Status;
 
-        public Stream Content => _context.ResponseContent;
+        public Stream ContentStream => _context.ResponseContentStream;
         
         public bool TryGetHeader(ReadOnlySpan<byte> name, out long value)
         {
@@ -93,6 +93,21 @@ namespace Azure.Core.Net
             return false;
         }
 
+        public bool TryGetHeader(string name, out long value)
+        {
+            value = default;
+            if (!TryGetHeader(name, out string valueString)) return false;
+            if (!long.TryParse(valueString, out value))
+                throw new Exception("bad content-length value");
+            return true;
+        }
+
+        public bool TryGetHeader(string name, out string value)
+        {
+            var utf8Name = Encoding.ASCII.GetBytes(name);
+            return TryGetHeader(utf8Name, out value);
+        }
+
         public void Dispose() => _context.Dispose();
 
         [EditorBrowsable(EditorBrowsableState.Never)]
@@ -104,7 +119,7 @@ namespace Azure.Core.Net
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override string ToString()
         {
-            var responseStream = _context.ResponseContent;
+            var responseStream = _context.ResponseContentStream;
             if (responseStream.CanSeek)
             {
                 var position = responseStream.Position;

@@ -51,7 +51,7 @@ namespace Azure.Core.Testing
 
             protected override int Status => _status;
 
-            protected override Stream ResponseContent => throw new NotImplementedException();
+            protected override Stream ResponseContentStream => throw new NotImplementedException();
 
             public Context(ref PipelineOptions client, CancellationToken cancellation, ServiceMethod method, Uri uri)
                 : base(uri, cancellation)

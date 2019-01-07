@@ -140,7 +140,7 @@ namespace Azure.Core.Net
 
             protected override int Status => _statusCode;
 
-            protected override Stream ResponseContent => new SequenceStream(_responseBuffer.AsReadOnly().Slice(_contentStart));
+            protected override Stream ResponseContentStream => new SequenceStream(_responseBuffer.AsReadOnly().Slice(_contentStart));
 
             protected override bool TryGetHeader(ReadOnlySpan<byte> name, out ReadOnlySpan<byte> value)
             {

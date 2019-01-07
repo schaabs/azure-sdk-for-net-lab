@@ -71,7 +71,7 @@ namespace Azure.Face
                 }
 
                 var buffer = new byte[contentLength];
-                var read = await response.Content.ReadAsync(buffer, cancellation);
+                var read = await response.ContentStream.ReadAsync(buffer, cancellation);
 
                 Func<ServiceResponse, FaceDetectResult> contentParser = null;
                 if (response.Status == 200) {
@@ -112,7 +112,7 @@ namespace Azure.Face
                 }
 
                 var buffer = new byte[contentLength];
-                var read = await response.Content.ReadAsync(buffer, cancellation);
+                var read = await response.ContentStream.ReadAsync(buffer, cancellation);
 
                 Func<ServiceResponse, FaceDetectResult> contentParser = null;
                 if (response.Status == 200)
@@ -145,7 +145,7 @@ namespace Azure.Face
 
                 await _client.ProcessAsync(context).ConfigureAwait(false);
 
-                return new Response<Stream>(context.Response, context.Response.Content);
+                return new Response<Stream>(context.Response, context.Response.ContentStream);
             }
             catch
             {

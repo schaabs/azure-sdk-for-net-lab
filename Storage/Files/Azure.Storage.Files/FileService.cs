@@ -15,7 +15,7 @@ namespace Azure.Storage.Files
         static Header s_defaultUAHeader = Header.Common.CreateUserAgent(SdkName, SdkVersion, null);
     
         static readonly Func<ServiceResponse, Stream> s_parser = (response) => {
-            return response.Content;
+            return response.ContentStream;
         };
 
         readonly Uri _baseUri;

@@ -147,7 +147,7 @@ namespace Azure.Core.Net.Pipeline
                 return true;
             }
 
-            protected internal override Stream ResponseContent => _responseMessage.Content.ReadAsStreamAsync().Result;
+            protected internal override Stream ResponseContentStream => _responseMessage.Content.ReadAsStreamAsync().Result;
             #endregion
 
             public override void Dispose()
