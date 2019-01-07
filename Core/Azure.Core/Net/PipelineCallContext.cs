@@ -21,15 +21,14 @@ namespace Azure.Core.Net
 
         public PipelineCallOptions Options => new PipelineCallOptions(this);
 
-        protected PipelineCallContext(Uri uri, CancellationToken cancellation)
+        protected PipelineCallContext(CancellationToken cancellation)
         {
-            Uri = uri;
             Cancellation = cancellation;
             Logger = new NullLogger();
         }
 
-        // request
-        public readonly Uri Uri;
+        // TODO (pri 1): what happens if this is called after AddHeader? Especially for SocketTransport
+        public abstract void AddRequestLine(ServiceMethod method, Uri uri);
 
         public abstract void AddHeader(Header header);
 

@@ -16,8 +16,8 @@ namespace Azure.Core.Net
 {
     public class SocketClientTransport : PipelineTransport
     {
-        public override PipelineCallContext CreateContext(ref PipelineOptions options, CancellationToken cancellation, ServiceMethod method, Uri uri)
-            => new SocketClientContext(ref options, cancellation, uri, method);
+        public override PipelineCallContext CreateContext(ref PipelineOptions options, CancellationToken cancellation)
+            => new SocketClientContext(ref options, cancellation);
 
         public override async Task ProcessAsync(PipelineCallContext context)
         {
@@ -34,6 +34,7 @@ namespace Azure.Core.Net
             Socket _socket;
             SslStream _sslStream;
 
+            string _host;
             Sequence<byte> _requestBuffer;
             Sequence<byte> _responseBuffer;
             PipelineContent _requestContent;
@@ -43,17 +44,20 @@ namespace Azure.Core.Net
             int _contentStart;
             bool _endOfHeadersWritten = false;
 
-            public SocketClientContext(ref PipelineOptions options, CancellationToken cancellation, Uri uri, ServiceMethod method)
-                : base(uri, cancellation)
+            public SocketClientContext(ref PipelineOptions options, CancellationToken cancellation)
+                : base(cancellation)
             {
                 _responseBuffer = new Sequence<byte>(options.Pool);
                 _requestBuffer = new Sequence<byte>(options.Pool);
+            }
 
-                var host = uri.Host;
+            public override void AddRequestLine(ServiceMethod method, Uri uri)
+            {
+                _host = uri.Host;
                 var path = uri.PathAndQuery;
 
                 Http.WriteRequestLine(ref _requestBuffer, ServiceProtocol.Https, method, Encoding.ASCII.GetBytes(path));
-                AddHeader("Host", host);
+                AddHeader("Host", _host);
             }
 
             internal virtual async Task<Sequence<byte>> ReceiveAsync(Sequence<byte> buffer)
@@ -85,8 +89,7 @@ namespace Azure.Core.Net
             {
                 if (_socket == null) // i.e. this is not a retry  
                 {
-                    string host = Uri.Host;;
-                    if (s_cache.TryGetValue(host, out var connection))
+                    if (s_cache.TryGetValue(_host, out var connection))
                     {
                         // TODO (pri 1): this needs to use a real pool and take the connection out, as of now it's very not thread safe
                         _socket = connection.Client;
@@ -95,13 +98,13 @@ namespace Azure.Core.Net
                     else
                     {
                         _socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
-                        await _socket.ConnectAsync(host, 443).ConfigureAwait(false);
+                        await _socket.ConnectAsync(_host, 443).ConfigureAwait(false);
                         var ns = new NetworkStream(_socket);
                         _sslStream = new SslStream(ns, false, new RemoteCertificateValidationCallback(
                             (object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors) => sslPolicyErrors == SslPolicyErrors.None
                         ));
-                        await _sslStream.AuthenticateAsClientAsync(host).ConfigureAwait(false);
-                        s_cache.Add(host, (_socket, _sslStream));
+                        await _sslStream.AuthenticateAsClientAsync(_host).ConfigureAwait(false);
+                        s_cache.Add(_host, (_socket, _sslStream));
                     }
                 }
                 await _sslStream.WriteAsync(buffer, Cancellation).ConfigureAwait(false);
@@ -181,16 +184,16 @@ namespace Azure.Core.Net
 
         public MockSocketTransport(params byte[][] responses) => _responses = responses;
 
-        public override PipelineCallContext CreateContext(ref PipelineOptions client, CancellationToken cancellation, ServiceMethod method, Uri uri)
-            => new MockSocketContext(ref client, cancellation, method, uri, _responses);
+        public override PipelineCallContext CreateContext(ref PipelineOptions client, CancellationToken cancellation)
+            => new MockSocketContext(ref client, cancellation, _responses);
 
         class MockSocketContext : SocketClientContext
         {
             byte[][] _responses;
             int _responseNumber;
 
-            public MockSocketContext(ref PipelineOptions options, CancellationToken cancellation, ServiceMethod method, Uri uri, byte[][] responses)
-                : base(ref options, cancellation, uri, method)
+            public MockSocketContext(ref PipelineOptions options, CancellationToken cancellation, byte[][] responses)
+                : base(ref options, cancellation)
             {
                 _responses = responses;
             }

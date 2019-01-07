@@ -66,10 +66,8 @@ namespace Azure.Core.Net
             return pipeline;
         }
 
-        // TODO (pri 0): this should not take Uri (and possibly other paramets). The Uri should be specified after the method is called. 
-        // This will allow us to add new AddUri overloads later taking a different representation for URI.
-        public PipelineCallContext CreateContext(PipelineOptions options, CancellationToken cancellation, ServiceMethod method, Uri uri)
-            => Transport.CreateContext(ref options, cancellation, method, uri);
+        public PipelineCallContext CreateContext(PipelineOptions options, CancellationToken cancellation)
+            => Transport.CreateContext(ref options, cancellation);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public async Task ProcessAsync(PipelineCallContext context)

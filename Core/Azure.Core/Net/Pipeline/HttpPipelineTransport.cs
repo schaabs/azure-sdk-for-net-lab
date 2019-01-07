@@ -17,8 +17,8 @@ namespace Azure.Core.Net.Pipeline
     {
         static readonly HttpClient s_client = new HttpClient();
 
-        public sealed override PipelineCallContext CreateContext(ref PipelineOptions options, CancellationToken cancellation, ServiceMethod method, Uri uri)
-            => new Context(options.Pool, cancellation, method, uri);
+        public sealed override PipelineCallContext CreateContext(ref PipelineOptions options, CancellationToken cancellation)
+            => new Context(options.Pool, cancellation);
             
         public sealed override async Task ProcessAsync(PipelineCallContext context)
         {
@@ -42,18 +42,21 @@ namespace Azure.Core.Net.Pipeline
             HttpRequestMessage _requestMessage;
             HttpResponseMessage _responseMessage;
             
-            public Context(ArrayPool<byte> pool, CancellationToken cancellation, ServiceMethod method, Uri uri) 
-                : base(uri, cancellation)
+            public Context(ArrayPool<byte> pool, CancellationToken cancellation) 
+                : base(cancellation)
             {
                 _requestMessage = new HttpRequestMessage();
+            }
+
+            #region Request
+            public override void AddRequestLine(ServiceMethod method, Uri uri)
+            {
                 _requestMessage.Method = ToHttpClientMethod(method);
                 _requestMessage.RequestUri = uri;
-
                 string hostString = uri.Host;
                 AddHeader("Host", hostString);
             }
 
-            #region Request
             public override void AddHeader(Header header)
             {
                 var valueString = Utf8.ToString(header.Value);
@@ -129,7 +132,7 @@ namespace Azure.Core.Net.Pipeline
                         return false;
                     }
                 }
-                // TODO (pri 1): we need to decide what to do with duplicated headers
+                // TODO (pri 0): we need to decide what to do with duplicated headers
                 var e = values.GetEnumerator();
                 if(!e.MoveNext()) {
                     value = default;
@@ -172,6 +175,8 @@ namespace Azure.Core.Net.Pipeline
                     default: throw new NotImplementedException();
                 }
             }
+
+
         }
     }
 }

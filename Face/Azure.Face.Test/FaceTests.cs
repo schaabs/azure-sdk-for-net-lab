@@ -93,7 +93,7 @@ namespace Azure.Face.Tests
             var cancellation = new CancellationTokenSource();
 
             var options = new PipelineOptions();
-            options.Transport = new SocketClientTransport(); // TODO (pri 1): streaming does not work with HttpTransport
+            options.Transport = new SocketClientTransport();
 
             var service = new FaceClient(s_account, s_key, options);
 

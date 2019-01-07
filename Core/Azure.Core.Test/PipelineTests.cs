@@ -19,11 +19,14 @@ namespace Azure.Core.Tests
 
             var pipeline = ClientPipeline.Create(options, "test", "1.0.0");
 
-            using (var context = pipeline.CreateContext(options, cancellation: default, ServiceMethod.Get, new Uri("https://contoso.a.io")))
+            using (var context = pipeline.CreateContext(options, cancellation: default))
             {
                 context.Logger = new MockLogger();
                 context.Options.SetOption(typeof(RetryPolicy), new CustomRetryPolicy());
+
+                context.AddRequestLine(ServiceMethod.Get, new Uri("https://contoso.a.io"));
                 pipeline.ProcessAsync(context).Wait();
+
                 Assert.True(context.Response.Status == 1);
                 var result = options.LoggingPolicy.ToString();
                 Assert.AreEqual("REQUEST: Get https://contoso.a.io/\nRESPONSE: 500\nREQUEST: Get https://contoso.a.io/\nRESPONSE: 1\n", result);

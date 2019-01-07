@@ -4,7 +4,7 @@ using System.Diagnostics;
 namespace Azure.Core.Diagnostics
 {
 
-    // TODO (pri 3): do we really want a new abstraction? Maybe we can use TraceSource?
+    // TODO (pri 1): do we really want a new abstraction? Maybe we can use TraceSource?
     public abstract class ServiceLogger
     {
         public abstract bool IsEnabledFor(TraceLevel level);

@@ -11,7 +11,7 @@ namespace Azure.Core.Net.Pipeline
 
         int[] _excludeErrors = Array.Empty<int>();
 
-        // TODO (pri 1): should this be a true singleton?
+        // TODO (pri 3): should this be a true singleton?
         public LoggingPolicy(params int[] excludeErrors)
             => _excludeErrors = excludeErrors;
 

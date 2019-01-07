@@ -22,7 +22,7 @@ namespace Azure.Face
         Uri _baseUrl;
         Header _keyHeader;
 
-        // TODO (pri 1): changing Application ID is not really working
+        // TODO (pri 2): changing Application ID is not really working
         public readonly FaceServiceOptions Options = new FaceServiceOptions("v1.0");
 
         public FaceClient(string baseUri, string key)
@@ -52,13 +52,14 @@ namespace Azure.Face
         public async Task<Response<FaceDetectResult>> DetectAsync(CancellationToken cancellation, Uri image, FaceDetectOptions options)
         {
             if (options == null) options = new FaceDetectOptions();
-            Uri url = BuildUrl(options);
+            Uri uri = BuildUri(options);
 
             PipelineCallContext context = null;
             try
             {
-                context = _client.CreateContext(_options, cancellation, ServiceMethod.Post, url);
-                
+                context = _client.CreateContext(_options, cancellation);
+
+                context.AddRequestLine(ServiceMethod.Post, uri);
                 context.AddHeader(_keyHeader);
                 context.AddHeader(Header.Common.JsonContentType);
                 context.AddContent(new FaceContent(image, context));
@@ -92,12 +93,13 @@ namespace Azure.Face
         public async Task<Response<FaceDetectResult>> DetectAsync(CancellationToken cancellation, string imagePath, FaceDetectOptions options)
         {
             if (options == null) options = new FaceDetectOptions();
-            Uri url = BuildUrl(options);
+            Uri uri = BuildUri(options);
 
             PipelineCallContext context = null;
             try
             {
-                context = _client.CreateContext(_options, cancellation, ServiceMethod.Post, url);
+                context = _client.CreateContext(_options, cancellation);
+                context.AddRequestLine(ServiceMethod.Post, uri);
 
                 context.AddHeader(_keyHeader);
                 context.AddHeader(Header.Common.OctetStreamContentType);
@@ -132,12 +134,13 @@ namespace Azure.Face
         public async Task<Response<Stream>> DetectLazyAsync(CancellationToken cancellation, Uri image, FaceDetectOptions options = default)
         {
             if (options == null) options = new FaceDetectOptions();
-            Uri url = BuildUrl(options);
+            Uri uri = BuildUri(options);
 
             PipelineCallContext context = null;
             try
             {
-                context = _client.CreateContext(_options, cancellation, ServiceMethod.Post, url);
+                context = _client.CreateContext(_options, cancellation);
+                context.AddRequestLine(ServiceMethod.Post, uri);
 
                 context.AddHeader(_keyHeader);
                 context.AddHeader(Header.Common.JsonContentType);
@@ -189,7 +192,7 @@ namespace Azure.Face
             #endregion
         }
 
-        Uri BuildUrl(FaceDetectOptions options)
+        Uri BuildUri(FaceDetectOptions options)
         {
             var ub = new UriBuilder(_baseUrl);
             ub.Path = ub.Path + Options.ApiVersion + s_detectMethod;
