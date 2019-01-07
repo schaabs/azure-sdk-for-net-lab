@@ -177,9 +177,9 @@ namespace Azure.Core.Buffers
         }
     }
 
-    static class SequenceExtensions
+    public static class SequenceExtensions
     {
-        public static async Task<Sequence<byte>> ReadAsync(this Stream stream, Sequence<byte> buffer, CancellationToken cancellation)
+        internal static async Task<Sequence<byte>> ReadAsync(this Stream stream, Sequence<byte> buffer, CancellationToken cancellation)
         {
             var memory = buffer.GetMemory();
             if (!MemoryMarshal.TryGetArray(memory, out ArraySegment<byte> segment))

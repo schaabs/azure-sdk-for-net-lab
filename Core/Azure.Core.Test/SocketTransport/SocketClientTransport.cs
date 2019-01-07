@@ -81,16 +81,6 @@ namespace Azure.Core.Net
                 }
             }
 
-            protected override async Task<ReadOnlySequence<byte>> ReadContentAsync(long minimumLength)
-            {
-                while (true)
-                {
-                    var length = _responseBuffer.Length - _contentStart;
-                    if (length >= minimumLength) return ResponseContent;
-                    _responseBuffer = await ReceiveAsync(_responseBuffer).ConfigureAwait(false);
-                }
-            }
-
             protected virtual async Task SendAsync(ReadOnlySequence<byte> buffer)
             {
                 if (_socket == null) // i.e. this is not a retry  
@@ -138,11 +128,6 @@ namespace Azure.Core.Net
             public override void AddContent(PipelineContent content)
                 => _requestContent = content;
 
-            protected override void DisposeResponseContent(long bytes)
-            {
-                // TODO (pri 2): this should dispose already read segments
-            }
-
             public void AddEndOfHeaders()
             {
                 var buffer = _requestBuffer.GetSpan(Http.CRLF.Length);
@@ -152,11 +137,10 @@ namespace Azure.Core.Net
             }
 
             ReadOnlySequence<byte> Headers => _responseBuffer.AsReadOnly().Slice(_headersStart, _contentStart - Http.CRLF.Length);
-            protected override ReadOnlySequence<byte> ResponseContent => _responseBuffer.AsReadOnly().Slice(_contentStart);
 
             protected override int Status => _statusCode;
 
-            protected override Stream ResponseStream => throw new NotImplementedException();
+            protected override Stream ResponseContent => new SequenceStream(_responseBuffer.AsReadOnly().Slice(_contentStart));
 
             protected override bool TryGetHeader(ReadOnlySpan<byte> name, out ReadOnlySpan<byte> value)
             {
@@ -224,5 +208,47 @@ namespace Azure.Core.Net
             protected override Task SendAsync(ReadOnlySequence<byte> buffer)
                 => Task.CompletedTask;
         }
+    }
+
+    class SequenceStream : Stream
+    {
+        ReadOnlySequence<byte> _bytes;
+        long _position;
+
+        public SequenceStream(ReadOnlySequence<byte> bytes)
+            => _bytes = bytes;
+
+        public override bool CanRead => true;
+
+        public override bool CanSeek => true;
+
+        public override bool CanWrite => false;
+
+        public override long Length => _bytes.Length;
+
+        public override long Position { get => _position; set => _position = value; }
+
+        public override void Flush()
+        {}
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var source = _bytes.Slice(_position);
+            var destination = buffer.AsSpan(offset, count);
+
+            source.CopyTo(destination);
+            return (int)Math.Min(destination.Length, source.Length);
+        }
+
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            if (origin == SeekOrigin.Begin) { _position = offset; return _position; }
+            else throw new NotImplementedException();
+        }
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count)
+            => throw new NotSupportedException();
     }
 }

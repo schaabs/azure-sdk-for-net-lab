@@ -97,18 +97,18 @@ namespace Azure.Face.Tests
 
             var service = new FaceClient(s_account, s_key, options);
 
-            Response<ContentReader> response = await service.DetectLazyAsync(cancellation.Token, new Uri(@"https://upload.wikimedia.org/wikipedia/commons/5/50/Albert_Einstein_%28Nobel%29.png"));
+            Response<Stream> response = await service.DetectLazyAsync(cancellation.Token, new Uri(@"https://upload.wikimedia.org/wikipedia/commons/5/50/Albert_Einstein_%28Nobel%29.png"));
 
             Assert.IsTrue(response.TryGetHeader(Encoding.ASCII.GetBytes("Content-Length"), out long contentLength));
             Assert.IsTrue(response.TryGetHeader("Content-Type", out string type));
             Assert.AreEqual("application/json; charset=utf-8", type);
 
-            ContentReader reader = response.Result;
-
             var content = ReadOnlySequence<byte>.Empty;
             while (content.Length != contentLength)
             {
-                content = await reader.ReadAsync(contentLength);
+                var buffer = new byte[contentLength];
+                var read = await response.Result.ReadAsync(buffer, cancellation.Token);
+                content = new ReadOnlySequence<byte>(buffer, 0, read);
             }
                   
             if (content.IsSingleSegment)

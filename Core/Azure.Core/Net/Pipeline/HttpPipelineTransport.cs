@@ -40,8 +40,6 @@ namespace Azure.Core.Net.Pipeline
             string _contentLengthHeaderValue;
             PipelineContent _requestContent;
             HttpRequestMessage _requestMessage;
-
-            Sequence<byte> _responseContent = default;
             HttpResponseMessage _responseMessage;
             
             public Context(ArrayPool<byte> pool, CancellationToken cancellation, ServiceMethod method, Uri uri) 
@@ -51,7 +49,6 @@ namespace Azure.Core.Net.Pipeline
                 _requestMessage.Method = ToHttpClientMethod(method);
                 _requestMessage.RequestUri = uri;
 
-                _responseContent = new Sequence<byte>(pool);
                 string hostString = uri.Host;
                 AddHeader("Host", hostString);
             }
@@ -132,7 +129,7 @@ namespace Azure.Core.Net.Pipeline
                         return false;
                     }
                 }
-
+                // TODO (pri 1): we need to decide what to do with duplicated headers
                 var e = values.GetEnumerator();
                 if(!e.MoveNext()) {
                     value = default;
@@ -150,32 +147,14 @@ namespace Azure.Core.Net.Pipeline
                 return true;
             }
 
-            protected internal override ReadOnlySequence<byte> ResponseContent => _responseContent.AsReadOnly();
-
-            protected internal override Stream ResponseStream => _responseMessage.Content.ReadAsStreamAsync().Result;
-
-            protected internal async override Task<ReadOnlySequence<byte>> ReadContentAsync(long minimumLength)
-            {
-                _responseContent.Dispose();
-                var contentStream = await _responseMessage.Content.ReadAsStreamAsync().ConfigureAwait(false);
-                while (true)
-                {
-                    var length = _responseContent.Length;
-                    if (length >= minimumLength) return _responseContent.AsReadOnly(); // TODO (pri 3): is this ok when minimumLength is zero?
-                    _responseContent = await contentStream.ReadAsync(_responseContent, Cancellation).ConfigureAwait(false);
-                }
-            }
-
-            protected internal override void DisposeResponseContent(long bytes)
-            {
-                // TODO (pri 2): this should dispose already read segments
-            }
+            protected internal override Stream ResponseContent => _responseMessage.Content.ReadAsStreamAsync().Result;
             #endregion
 
             public override void Dispose()
             {
                 _requestContent?.Dispose();
-                _responseContent.Dispose();
+                _requestMessage?.Dispose();
+                _responseMessage?.Dispose();
                 base.Dispose();
             }
 

@@ -1,14 +1,14 @@
 ﻿using Azure.Core;
 using Azure.Core.Buffers;
 using Azure.Core.Net;
-using Azure.Core.Net.Pipeline;
 using System;
-using System.Buffers;
+using Azure.Core.Buffers;
 using System.ComponentModel;
 using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Buffers;
 
 namespace Azure.Face
 {
@@ -70,11 +70,12 @@ namespace Azure.Face
                     throw new Exception("bad response: no content length header");
                 }
 
-                await response.Content.ReadAsync(contentLength).ConfigureAwait(false);
+                var buffer = new byte[contentLength];
+                var read = await response.Content.ReadAsync(buffer, cancellation);
 
                 Func<ServiceResponse, FaceDetectResult> contentParser = null;
                 if (response.Status == 200) {
-                    contentParser = (rsp) => { return FaceDetectResult.Parse(rsp.Content.Bytes); };
+                    contentParser = (rsp) => { return FaceDetectResult.Parse(new ReadOnlySequence<byte>(buffer, 0, read)); };
                 }
                 return new Response<FaceDetectResult>(response, contentParser);
             }
@@ -110,14 +111,15 @@ namespace Azure.Face
                     throw new Exception("bad response: no content length header");
                 }
 
-                await response.Content.ReadAsync(contentLength).ConfigureAwait(false);
+                var buffer = new byte[contentLength];
+                var read = await response.Content.ReadAsync(buffer, cancellation);
 
-                Func<ServiceResponse, FaceDetectResult> parser = null;
+                Func<ServiceResponse, FaceDetectResult> contentParser = null;
                 if (response.Status == 200)
                 {
-                    parser = (rsp) => { return FaceDetectResult.Parse(rsp.Content.Bytes); };
+                    contentParser = (rsp) => { return FaceDetectResult.Parse(new ReadOnlySequence<byte>(buffer, 0, read)); };
                 }
-                return new Response<FaceDetectResult>(response, parser);
+                return new Response<FaceDetectResult>(response, contentParser);
             }
             catch
             {
@@ -127,7 +129,7 @@ namespace Azure.Face
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public async Task<Response<ContentReader>> DetectLazyAsync(CancellationToken cancellation, Uri image, FaceDetectOptions options = default)
+        public async Task<Response<Stream>> DetectLazyAsync(CancellationToken cancellation, Uri image, FaceDetectOptions options = default)
         {
             if (options == null) options = new FaceDetectOptions();
             Uri url = BuildUrl(options);
@@ -143,7 +145,7 @@ namespace Azure.Face
 
                 await _client.ProcessAsync(context).ConfigureAwait(false);
 
-                return new Response<ContentReader>(context.Response, context.Response.Content);
+                return new Response<Stream>(context.Response, context.Response.Content);
             }
             catch
             {

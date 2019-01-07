@@ -51,16 +51,11 @@ namespace Azure.Core.Testing
 
             protected override int Status => _status;
 
-            protected override ReadOnlySequence<byte> ResponseContent => throw new NotImplementedException();
-
-            protected override Stream ResponseStream => throw new NotImplementedException();
+            protected override Stream ResponseContent => throw new NotImplementedException();
 
             public Context(ref PipelineOptions client, CancellationToken cancellation, ServiceMethod method, Uri uri)
                 : base(uri, cancellation)
                 => SetRequestLine(method, uri);
-
-            protected override Task<ReadOnlySequence<byte>> ReadContentAsync(long minimumLength)
-                => Task.FromResult(ReadOnlySequence<byte>.Empty);
 
             public void SetStatus(int status) => _status = status;
 
@@ -80,10 +75,6 @@ namespace Azure.Core.Testing
             }
 
             public override void AddHeader(Header header)
-            {
-            }
-
-            protected override void DisposeResponseContent(long bytes)
             {
             }
 

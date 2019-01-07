@@ -15,8 +15,7 @@ namespace Azure.Storage.Files
         static Header s_defaultUAHeader = Header.Common.CreateUserAgent(SdkName, SdkVersion, null);
     
         static readonly Func<ServiceResponse, Stream> s_parser = (response) => {
-            return new ResponseStream(response);
-            throw new Exception("invalid response content");
+            return response.Content;
         };
 
         readonly Uri _baseUri;
@@ -88,64 +87,6 @@ namespace Azure.Storage.Files
                 if (context != null) context.Dispose();
                 throw;
             }
-        }
-    }
-
-    class ResponseStream : Stream
-    {
-        ServiceResponse _response;
-        long _length;
-        public ResponseStream(ServiceResponse response)
-        {
-            _response = response;
-            if (!_response.TryGetHeader(Header.Constants.ContentLength, out _length)) {
-                throw new Exception("no content length");
-            }
-        }
-
-        public override bool CanRead => true;
-
-        public override bool CanSeek => throw new NotImplementedException();
-
-        public override bool CanWrite => throw new NotImplementedException();
-
-        public override long Length => throw new NotImplementedException();
-
-        public override long Position { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-
-        public override void Flush()
-        {
-            throw new NotImplementedException();
-        }
-
-        public override int Read(byte[] buffer, int offset, int count)
-        {
-            var task = ReadAsync(buffer, offset, count);
-            return task.Result;
-        }
-
-        public override long Seek(long offset, SeekOrigin origin)
-        {
-            throw new NotImplementedException();
-        }
-
-        public override void SetLength(long value)
-        {
-            throw new NotImplementedException();
-        }
-
-        public override void Write(byte[] buffer, int offset, int count)
-        {
-            throw new NotImplementedException();
-        }
-
-        public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-        {
-            // TODO (pri 1): how do I pass the cancellation token?
-            var result = await _response.Content.ReadAsync(1); // TODO (pri 0): this 1 is a hack
-            result.CopyTo(buffer.AsSpan(offset, count));
-            // TODO (pri 0): how do I advance?
-            return (int)result.Length;
         }
     }
 }

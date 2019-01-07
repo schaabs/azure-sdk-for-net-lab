@@ -46,13 +46,7 @@ namespace Azure.Core.Net
 
         protected internal abstract bool TryGetHeader(ReadOnlySpan<byte> name, out ReadOnlySpan<byte> value);
 
-        protected internal abstract Task<ReadOnlySequence<byte>> ReadContentAsync(long minimumLength = 0);
-
-        protected internal abstract void DisposeResponseContent(long bytes);
-
-        protected internal abstract ReadOnlySequence<byte> ResponseContent { get; }
-
-        protected internal abstract Stream ResponseStream { get; }
+        protected internal abstract Stream ResponseContent { get; }
 
         public virtual void Dispose() => _options.Clear();
 
@@ -75,7 +69,7 @@ namespace Azure.Core.Net
 
         public int Status => _context.Status;
 
-        public ContentReader Content => new ContentReader(_context);
+        public Stream Content => _context.ResponseContent;
         
         public bool TryGetHeader(ReadOnlySpan<byte> name, out long value)
         {
@@ -110,8 +104,17 @@ namespace Azure.Core.Net
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override string ToString()
         {
-            var contentText = Encoding.UTF8.GetString(_context.ResponseContent.ToArray());
-            return $"{Status} {contentText}";
+            var responseStream = _context.ResponseContent;
+            if (responseStream.CanSeek)
+            {
+                var position = responseStream.Position;
+                var reader = new StreamReader(responseStream);
+                var result = $"{Status} {reader.ReadToEnd()}";
+                responseStream.Seek(position, SeekOrigin.Begin);
+                return result;
+            }
+
+            return $"Status : {Status.ToString()}";
         }
     }
 
