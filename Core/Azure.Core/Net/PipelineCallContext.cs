@@ -1,4 +1,5 @@
-﻿using Azure.Core.Diagnostics;
+﻿using Azure.Core.Buffers;
+using Azure.Core.Diagnostics;
 using System;
 using System.Buffers;
 using System.Buffers.Text;
@@ -129,52 +130,6 @@ namespace Azure.Core.Net
             }
 
             return $"Status : {Status.ToString()}";
-        }
-    }
-
-    public abstract class PipelineContent : IDisposable
-    {
-        public static PipelineContent Create(Stream stream) => new StreamContent(stream);
-
-        public abstract Task WriteTo(Stream stream);
-
-        public abstract bool TryComputeLength(out long length);
-
-        public abstract void Dispose();
-
-        class StreamContent : PipelineContent
-        {
-            Stream _stream;
-
-            public StreamContent(Stream stream)
-            {
-                if (!stream.CanSeek) throw new ArgumentException("stream must be seekable", nameof(stream));
-                _stream = stream;
-            }
-
-            public sealed override bool TryComputeLength(out long length)
-            {
-                if (_stream.CanSeek)
-                {
-                    length = _stream.Length;
-                    return true;
-                }
-                length = 0;
-                return false;
-            }
-
-            public sealed async override Task WriteTo(Stream stream)
-            {
-                _stream.Seek(0, SeekOrigin.Begin);
-                await _stream.CopyToAsync(stream);
-                await stream.FlushAsync();
-            }
-
-            public override void Dispose()
-            {
-                _stream?.Dispose();
-                _stream = null;
-            }
         }
     }
 }

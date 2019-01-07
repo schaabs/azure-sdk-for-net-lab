@@ -9,6 +9,34 @@ namespace Azure.Core.Buffers
 {
     public static class StreamMemoryExtensions
     {
+        public static async Task WriteAsync(this Stream stream, ReadOnlyMemory<byte> buffer, CancellationToken cancellation)
+        {
+            if (buffer.Length == 0) return;
+            byte[] array = null;
+            try
+            {
+                if (MemoryMarshal.TryGetArray(buffer, out var arraySegment))
+                {
+                    await stream.WriteAsync(arraySegment.Array, arraySegment.Offset, arraySegment.Count, cancellation).ConfigureAwait(false);
+                }
+                else
+                {
+                    if (array == null || buffer.Length < buffer.Length)
+                    {
+                        if (array != null) ArrayPool<byte>.Shared.Return(array);
+                        array = ArrayPool<byte>.Shared.Rent(buffer.Length);
+                    }
+                    if (!buffer.TryCopyTo(array)) throw new Exception("could not rent buffer large enough");
+                    await stream.WriteAsync(array, 0, buffer.Length, cancellation).ConfigureAwait(false);
+                }
+                
+            }
+            finally
+            {
+                if (array != null) ArrayPool<byte>.Shared.Return(array);
+            }
+        }
+
         public static async Task WriteAsync(this Stream stream, ReadOnlySequence<byte> buffer, CancellationToken cancellation)
         {
             if (buffer.Length == 0) return;
