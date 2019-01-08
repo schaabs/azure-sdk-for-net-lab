@@ -23,7 +23,7 @@ namespace Azure.Face.Tests
             var cancellation = new CancellationTokenSource();
 
             var service = new FaceClient(s_account, s_key);
-            var response = await service.DetectAsync(cancellation.Token, @"images\face2.jpg");
+            var response = await service.DetectAsync(cancellation.Token, Path.Join("images", "face2.jpg"));
 
             Assert.AreEqual("male", response.Result.Gender);
             Assert.Greater(100, response.Result.Age);
