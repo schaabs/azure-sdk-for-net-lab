@@ -2,6 +2,7 @@
 using System.IO;
 using Azure.Core.Buffers;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace Azure.Core.Net
 {
@@ -14,7 +15,7 @@ namespace Azure.Core.Net
 
         public static PipelineContent Create(ReadOnlyMemory<byte> bytes) => new MemoryContent(bytes);
 
-        public abstract Task WriteTo(Stream stream); // TODO (pri 1): should this support cancellations
+        public abstract Task WriteTo(Stream stream, CancellationToken cancellation); // TODO (pri 1): should this support cancellations
 
         public abstract bool TryComputeLength(out long length);
 
@@ -41,11 +42,11 @@ namespace Azure.Core.Net
                 return false;
             }
 
-            public sealed async override Task WriteTo(Stream stream)
+            public sealed async override Task WriteTo(Stream stream, CancellationToken cancellation)
             {
                 _stream.Seek(0, SeekOrigin.Begin);
-                await _stream.CopyToAsync(stream);
-                await stream.FlushAsync();
+                await _stream.CopyToAsync(stream, 81920, cancellation).ConfigureAwait(false);
+                await stream.FlushAsync().ConfigureAwait(false);
             }
 
             public override void Dispose()
@@ -78,9 +79,9 @@ namespace Azure.Core.Net
                 return true;
             }
 
-            public async override Task WriteTo(Stream stream)
+            public async override Task WriteTo(Stream stream, CancellationToken cancellation)
             {
-                await stream.WriteAsync(_bytes, _contentStart, _contentLength);
+                await stream.WriteAsync(_bytes, _contentStart, _contentLength, cancellation);
             }
         }
 
@@ -101,8 +102,8 @@ namespace Azure.Core.Net
                 return true;
             }
 
-            public async override Task WriteTo(Stream stream)
-                => await stream.WriteAsync(_bytes, cancellation: default);
+            public async override Task WriteTo(Stream stream, CancellationToken cancellation)
+                => await stream.WriteAsync(_bytes, cancellation);
         }
     }
 }

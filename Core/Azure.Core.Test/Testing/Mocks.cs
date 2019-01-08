@@ -30,7 +30,7 @@ namespace Azure.Core.Testing
         public MockTransport(params int[] statusCodes)
             => _statusCodes = statusCodes;
 
-        public override PipelineCallContext CreateContext(ref PipelineOptions options, CancellationToken cancellation)
+        public override PipelineCallContext CreateContext(PipelineOptions options, CancellationToken cancellation)
             => new Context(ref options, cancellation);
 
         public override Task ProcessAsync(PipelineCallContext context)
@@ -59,7 +59,7 @@ namespace Azure.Core.Testing
 
             public void SetStatus(int status) => _status = status;
 
-            public override void AddRequestLine(ServiceMethod method, Uri uri)
+            public override void SetRequestLine(ServiceMethod method, Uri uri)
             {
                 _uri = uri.ToString();
                 _method = method;
@@ -78,7 +78,7 @@ namespace Azure.Core.Testing
             {
             }
 
-            public override void AddContent(PipelineContent content)
+            public override void SetContent(PipelineContent content)
             {
                 throw new NotImplementedException();
             }

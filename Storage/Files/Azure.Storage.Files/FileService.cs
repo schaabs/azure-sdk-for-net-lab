@@ -36,7 +36,7 @@ namespace Azure.Storage.Files
             PipelineCallContext context = null;
             try {
                 context = Pipeline.CreateContext(_options, cancellation);
-                context.AddRequestLine(ServiceMethod.Put, _baseUri);
+                context.SetRequestLine(ServiceMethod.Put, _baseUri);
 
                 await Pipeline.ProcessAsync(context).ConfigureAwait(false);
 
@@ -59,11 +59,11 @@ namespace Azure.Storage.Files
             PipelineCallContext context = null;
             try {
                 context = Pipeline.CreateContext(_options, cancellation);
-                context.AddRequestLine(ServiceMethod.Put, _baseUri);
+                context.SetRequestLine(ServiceMethod.Put, _baseUri);
 
                 context.AddHeader(Header.Common.CreateContentLength(content.Length));
                 context.AddHeader(Header.Common.OctetStreamContentType);
-                context.AddContent(PipelineContent.Create(content));
+                context.SetContent(PipelineContent.Create(content));
 
                 await Pipeline.ProcessAsync(context).ConfigureAwait(false);
 
@@ -80,7 +80,7 @@ namespace Azure.Storage.Files
             PipelineCallContext context = null;
             try {
                 context = Pipeline.CreateContext(_options, cancellation);
-                context.AddRequestLine(ServiceMethod.Get, _baseUri);
+                context.SetRequestLine(ServiceMethod.Get, _baseUri);
 
                 await Pipeline.ProcessAsync(context).ConfigureAwait(false);
 

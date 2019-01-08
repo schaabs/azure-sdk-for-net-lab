@@ -21,7 +21,7 @@ namespace Azure.Core.Net.Pipeline
     {
         public abstract Task ProcessAsync(PipelineCallContext context);
 
-        public abstract PipelineCallContext CreateContext(ref PipelineOptions clinet, CancellationToken cancellation);
+        public abstract PipelineCallContext CreateContext(PipelineOptions options, CancellationToken cancellation);
 
         public sealed override async Task ProcessAsync(PipelineCallContext context, ReadOnlyMemory<PipelinePolicy> next)
         {

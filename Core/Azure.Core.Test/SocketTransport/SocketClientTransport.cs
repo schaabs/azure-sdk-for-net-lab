@@ -16,7 +16,7 @@ namespace Azure.Core.Net
 {
     public class SocketClientTransport : PipelineTransport
     {
-        public override PipelineCallContext CreateContext(ref PipelineOptions options, CancellationToken cancellation)
+        public override PipelineCallContext CreateContext(PipelineOptions options, CancellationToken cancellation)
             => new SocketClientContext(ref options, cancellation);
 
         public override async Task ProcessAsync(PipelineCallContext context)
@@ -51,7 +51,7 @@ namespace Azure.Core.Net
                 _requestBuffer = new Sequence<byte>(options.Pool);
             }
 
-            public override void AddRequestLine(ServiceMethod method, Uri uri)
+            public override void SetRequestLine(ServiceMethod method, Uri uri)
             {
                 _host = uri.Host;
                 var path = uri.PathAndQuery;
@@ -108,8 +108,8 @@ namespace Azure.Core.Net
                     }
                 }
                 await _sslStream.WriteAsync(buffer, Cancellation).ConfigureAwait(false);
-                await _requestContent.WriteTo(_sslStream);
-                await _sslStream.FlushAsync();
+                await _requestContent.WriteTo(_sslStream, Cancellation);
+                await _sslStream.FlushAsync().ConfigureAwait(false);
             }
 
             public sealed override void AddHeader(Header header)
@@ -128,7 +128,7 @@ namespace Azure.Core.Net
                 }
             }
 
-            public override void AddContent(PipelineContent content)
+            public override void SetContent(PipelineContent content)
                 => _requestContent = content;
 
             public void AddEndOfHeaders()
@@ -184,7 +184,7 @@ namespace Azure.Core.Net
 
         public MockSocketTransport(params byte[][] responses) => _responses = responses;
 
-        public override PipelineCallContext CreateContext(ref PipelineOptions client, CancellationToken cancellation)
+        public override PipelineCallContext CreateContext(PipelineOptions client, CancellationToken cancellation)
             => new MockSocketContext(ref client, cancellation, _responses);
 
         class MockSocketContext : SocketClientContext

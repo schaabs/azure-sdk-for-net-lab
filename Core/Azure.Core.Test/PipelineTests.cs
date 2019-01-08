@@ -24,7 +24,7 @@ namespace Azure.Core.Tests
                 context.Logger = new MockLogger();
                 context.Options.SetOption(typeof(RetryPolicy), new CustomRetryPolicy());
 
-                context.AddRequestLine(ServiceMethod.Get, new Uri("https://contoso.a.io"));
+                context.SetRequestLine(ServiceMethod.Get, new Uri("https://contoso.a.io"));
                 pipeline.ProcessAsync(context).Wait();
 
                 Assert.True(context.Response.Status == 1);

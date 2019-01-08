@@ -67,7 +67,7 @@ namespace Azure.Core.Net
         }
 
         public PipelineCallContext CreateContext(PipelineOptions options, CancellationToken cancellation)
-            => Transport.CreateContext(ref options, cancellation);
+            => Transport.CreateContext(options, cancellation);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public async Task ProcessAsync(PipelineCallContext context)

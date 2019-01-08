@@ -29,14 +29,14 @@ namespace Azure.Core.Net
         }
 
         // TODO (pri 1): what happens if this is called after AddHeader? Especially for SocketTransport
-        public abstract void AddRequestLine(ServiceMethod method, Uri uri);
+        public abstract void SetRequestLine(ServiceMethod method, Uri uri);
 
         public abstract void AddHeader(Header header);
 
         public virtual void AddHeader(string name, string value)
             => AddHeader(new Header(name, value));
 
-        public abstract void AddContent(PipelineContent content);
+        public abstract void SetContent(PipelineContent content);
 
         // response
         public ServiceResponse Response => new ServiceResponse(this);

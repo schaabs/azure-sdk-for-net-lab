@@ -59,10 +59,10 @@ namespace Azure.Face
             {
                 context = _client.CreateContext(_options, cancellation);
 
-                context.AddRequestLine(ServiceMethod.Post, uri);
+                context.SetRequestLine(ServiceMethod.Post, uri);
                 context.AddHeader(_keyHeader);
                 context.AddHeader(Header.Common.JsonContentType);
-                context.AddContent(new FaceContent(image, context));
+                context.SetContent(new FaceContent(image, context));
 
                 await _client.ProcessAsync(context).ConfigureAwait(false);
 
@@ -99,7 +99,7 @@ namespace Azure.Face
             try
             {
                 context = _client.CreateContext(_options, cancellation);
-                context.AddRequestLine(ServiceMethod.Post, uri);
+                context.SetRequestLine(ServiceMethod.Post, uri);
 
                 context.AddHeader(_keyHeader);
                 context.AddHeader(Header.Common.OctetStreamContentType);
@@ -140,11 +140,11 @@ namespace Azure.Face
             try
             {
                 context = _client.CreateContext(_options, cancellation);
-                context.AddRequestLine(ServiceMethod.Post, uri);
+                context.SetRequestLine(ServiceMethod.Post, uri);
 
                 context.AddHeader(_keyHeader);
                 context.AddHeader(Header.Common.JsonContentType);
-                context.AddContent(new FaceContent(image, context));
+                context.SetContent(new FaceContent(image, context));
 
                 await _client.ProcessAsync(context).ConfigureAwait(false);
 
@@ -218,14 +218,14 @@ namespace Azure.Face
                 return true;
             }
 
-            public async override Task WriteTo(Stream stream)
+            public async override Task WriteTo(Stream stream, CancellationToken cancellation)
             {
                 var writer = new StreamWriter(stream);
                 writer.Write(@"{""url"": """);
                 writer.Write(_image);
                 writer.Write(@"""}");
-                await writer.FlushAsync();
-                await stream.FlushAsync();
+                await writer.FlushAsync().ConfigureAwait(false); 
+                await stream.FlushAsync().ConfigureAwait(false);
             }
 
             public override void Dispose()
@@ -237,7 +237,7 @@ namespace Azure.Face
         {
             byte[] temp = new byte[4096];
             var stream = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, true);
-            context.AddContent(PipelineContent.Create(stream));
+            context.SetContent(PipelineContent.Create(stream));
             context.AddHeader(Header.Common.CreateContentLength(stream.Length));
         }
 

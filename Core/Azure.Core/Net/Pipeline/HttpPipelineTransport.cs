@@ -1,10 +1,8 @@
-﻿using Azure.Core.Buffers;
-using System;
-using System.Buffers;
+﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,15 +15,15 @@ namespace Azure.Core.Net.Pipeline
     {
         static readonly HttpClient s_client = new HttpClient();
 
-        public sealed override PipelineCallContext CreateContext(ref PipelineOptions options, CancellationToken cancellation)
-            => new Context(options.Pool, cancellation);
-            
+        public sealed override PipelineCallContext CreateContext(PipelineOptions options, CancellationToken cancellation)
+            => new Context(cancellation);
+
         public sealed override async Task ProcessAsync(PipelineCallContext context)
         {
             var httpTransportContext = context as Context;
             if (httpTransportContext == null) throw new InvalidOperationException("the context is not compatible with the transport");
 
-            var httpRequest = httpTransportContext.BuildRequestMessage();
+            HttpRequestMessage httpRequest = httpTransportContext.BuildRequestMessage();
 
             HttpResponseMessage responseMessage = await ProcessCoreAsync(context.Cancellation, httpRequest).ConfigureAwait(false);
             httpTransportContext.ProcessResponseMessage(responseMessage);
@@ -34,27 +32,22 @@ namespace Azure.Core.Net.Pipeline
         protected virtual async Task<HttpResponseMessage> ProcessCoreAsync(CancellationToken cancellation, HttpRequestMessage httpRequest)
             => await s_client.SendAsync(httpRequest, cancellation).ConfigureAwait(false);
 
-        class Context : PipelineCallContext
+        sealed class Context : PipelineCallContext
         {
             string _contentTypeHeaderValue;
             string _contentLengthHeaderValue;
             PipelineContent _requestContent;
             HttpRequestMessage _requestMessage;
             HttpResponseMessage _responseMessage;
-            
-            public Context(ArrayPool<byte> pool, CancellationToken cancellation) 
-                : base(cancellation)
-            {
-                _requestMessage = new HttpRequestMessage();
-            }
+
+            public Context(CancellationToken cancellation) : base(cancellation)
+                => _requestMessage = new HttpRequestMessage();
 
             #region Request
-            public override void AddRequestLine(ServiceMethod method, Uri uri)
+            public override void SetRequestLine(ServiceMethod method, Uri uri)
             {
                 _requestMessage.Method = ToHttpClientMethod(method);
                 _requestMessage.RequestUri = uri;
-                string hostString = uri.Host;
-                AddHeader("Host", hostString);
             }
 
             public override void AddHeader(Header header)
@@ -66,60 +59,49 @@ namespace Azure.Core.Net.Pipeline
 
             public override void AddHeader(string name, string value)
             {
+                // TODO (pri 1): any other headers must be added to content?
                 if (name.Equals("Content-Type", StringComparison.InvariantCulture)) {
                     _contentTypeHeaderValue = value;
                 }
-                else if (name.Equals("Content-Length", StringComparison.InvariantCulture))
-                {
+                else if (name.Equals("Content-Length", StringComparison.InvariantCulture)) {
                     _contentLengthHeaderValue = value;
                 }
                 else {
-                    if(!_requestMessage.Headers.TryAddWithoutValidation(name, value))
-                    {
-                        throw new NotImplementedException();
+                    if (!_requestMessage.Headers.TryAddWithoutValidation(name, value)) {
+                        throw new InvalidOperationException();
                     }
                 }
             }
 
-            public override void AddContent(PipelineContent content)
+            public override void SetContent(PipelineContent content)
                 => _requestContent = content;
 
-            internal HttpRequestMessage BuildRequestMessage()
+            public HttpRequestMessage BuildRequestMessage()
             {
                 // A copy of a message needs to be made because HttpClient does not allow sending the same message twice,
                 // and so the retry logic fails.
                 var message = new HttpRequestMessage(_requestMessage.Method, _requestMessage.RequestUri);
                 foreach (var header in _requestMessage.Headers) {
-                    if(!message.Headers.TryAddWithoutValidation(header.Key, header.Value)) {
+                    if (!message.Headers.TryAddWithoutValidation(header.Key, header.Value)) {
                         throw new Exception("could not add header " + header.ToString());
                     }
                 }
 
-                if(_requestContent != null)
-                {
-                    message.Content = new PipelineContentAdapter(_requestContent);
-                    message.Content.Headers.Add("Content-Type", _contentTypeHeaderValue);
-                    if(_contentLengthHeaderValue!=null) message.Content.Headers.Add("Content-Length", _contentLengthHeaderValue);
+                if (_requestContent != null) {
+                    message.Content = new PipelineContentAdapter(_requestContent, Cancellation);
+                    if (_contentTypeHeaderValue != null) message.Content.Headers.Add("Content-Type", _contentTypeHeaderValue);
+                    if (_contentLengthHeaderValue != null) message.Content.Headers.Add("Content-Length", _contentLengthHeaderValue);
                 }
 
                 return message;
             }
             #endregion
 
-            class PipelineContentAdapter : HttpContent
-            {
-                PipelineContent _content;
-                public PipelineContentAdapter(PipelineContent content)
-                    => _content = content;
-
-                protected async override Task SerializeToStreamAsync(Stream stream, TransportContext context)
-                    => await _content.WriteTo(stream);
-
-                protected override bool TryComputeLength(out long length)
-                    => _content.TryComputeLength(out length);
-            }
             #region Response
-            internal void ProcessResponseMessage(HttpResponseMessage response) { _responseMessage = response; }
+            internal void ProcessResponseMessage(HttpResponseMessage response) {
+                _responseMessage = response;
+                _requestMessage.Dispose();
+            }
 
             protected internal override int Status => (int)_responseMessage.StatusCode;
 
@@ -132,24 +114,13 @@ namespace Azure.Core.Net.Pipeline
                         return false;
                     }
                 }
-                // TODO (pri 0): we need to decide what to do with duplicated headers
-                var e = values.GetEnumerator();
-                if(!e.MoveNext()) {
-                    value = default;
-                    return false;
-                }
-
-                string first = e.Current;
-                if(!e.MoveNext()) {
-                    value = Encoding.UTF8.GetBytes(first);
-                    return true;
-                }
 
                 var all = string.Join(",", values);
                 value = Encoding.ASCII.GetBytes(all);
                 return true;
             }
 
+            // TODO (pri 1): is it ok to just call .Result here?
             protected internal override Stream ResponseContentStream => _responseMessage.Content.ReadAsStreamAsync().Result;
             #endregion
 
@@ -161,12 +132,12 @@ namespace Azure.Core.Net.Pipeline
                 base.Dispose();
             }
 
-            public override string ToString() => _requestMessage.ToString();
+            public override string ToString() =>
+                _responseMessage!=null? _responseMessage.ToString() : _requestMessage.ToString();
 
             public static HttpMethod ToHttpClientMethod(ServiceMethod method)
             {
-                switch (method)
-                {
+                switch (method) {
                     case ServiceMethod.Get: return HttpMethod.Get;
                     case ServiceMethod.Post: return HttpMethod.Post;
                     case ServiceMethod.Put: return HttpMethod.Put;
@@ -176,7 +147,31 @@ namespace Azure.Core.Net.Pipeline
                 }
             }
 
+            sealed class PipelineContentAdapter : HttpContent
+            {
+                PipelineContent _content;
+                CancellationToken _cancellation;
 
+                public PipelineContentAdapter(PipelineContent content, CancellationToken cancellation)
+                {
+                    Debug.Assert(content != null);
+
+                    _content = content;
+                    _cancellation = cancellation;
+                }
+
+                protected async override Task SerializeToStreamAsync(Stream stream, TransportContext context)
+                    => await _content.WriteTo(stream, _cancellation).ConfigureAwait(false);
+
+                protected override bool TryComputeLength(out long length)
+                    => _content.TryComputeLength(out length);
+
+                protected override void Dispose(bool disposing)
+                {
+                    _content.Dispose();
+                    base.Dispose(disposing);
+                }
+            }
         }
     }
 }
