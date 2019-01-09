@@ -53,11 +53,15 @@ namespace Azure.Storage.Files.Tests
             var (service, pool) = CreateTestService(new GetMock(new MemoryStream(responseBytes)));
 
             var response = await service.GetAsync(CancellationToken.None);
-            using(Stream content = response.Result) {
-                byte[] buffer = new byte[1024];
-                var read = await content.ReadAsync(buffer);
-                var responseText = Encoding.ASCII.GetString(buffer, 0, read);
-                Assert.AreEqual(payload, responseText);
+            if (response.Status == 200)
+            {
+                using (Stream content = response.Result)
+                {
+                    byte[] buffer = new byte[1024];
+                    var read = await content.ReadAsync(buffer);
+                    var responseText = Encoding.ASCII.GetString(buffer, 0, read);
+                    Assert.AreEqual(payload, responseText);
+                }
             }
 
             response.Dispose();
@@ -69,7 +73,7 @@ namespace Azure.Storage.Files.Tests
             var options = new PipelineOptions();
             var pool = new TestPool<byte>();
             if (transport.Responses.Count == 0) {
-                transport.Responses.Add(HttpStatusCode.NotFound);
+                transport.Responses.Add(HttpStatusCode.GatewayTimeout);
                 transport.Responses.Add(HttpStatusCode.OK);
             }
             options.Transport = transport;

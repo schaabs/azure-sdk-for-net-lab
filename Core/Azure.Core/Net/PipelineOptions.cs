@@ -1,5 +1,6 @@
 ﻿using Azure.Core.Diagnostics;
 using Azure.Core.Net.Pipeline;
+using System;
 using System.Buffers;
 using System.ComponentModel;
 
@@ -8,7 +9,12 @@ namespace Azure.Core.Net
     public class PipelineOptions
     {
         static readonly PipelinePolicy s_defaultLoggingPolicy = new LoggingPolicy();
-        static readonly PipelinePolicy s_defaultRetryPolicy = new RetryPolicy();
+        // TODO (pri 2): what are the default status codes to retry?
+        static readonly PipelinePolicy s_defaultRetryPolicy = Pipeline.RetryPolicy.CreateFixed(3, TimeSpan.Zero, 
+            500, // Internal Server Error 
+            504  // Gateway Timeout
+        );
+
         static readonly PipelineTransport s_defaultTransport = new HttpPipelineTransport();
         static readonly ServiceLogger s_defaultLogger = new NullLogger();
 

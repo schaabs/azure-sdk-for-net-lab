@@ -1,13 +1,10 @@
-﻿using Azure.Core.Buffers;
-using Azure.Core.Diagnostics;
+﻿using Azure.Core.Diagnostics;
 using System;
-using System.Buffers;
 using System.Buffers.Text;
 using System.ComponentModel;
 using System.IO;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using static System.Buffers.Text.Encodings;
 
 namespace Azure.Core.Net

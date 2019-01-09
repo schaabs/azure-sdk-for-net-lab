@@ -13,7 +13,7 @@ namespace Azure.Core.Tests
 
             var options = new PipelineOptions();
             options.Transport = new MockTransport(500, 1);
-            options.RetryPolicy = new RetryPolicy();
+            options.RetryPolicy = new CustomRetryPolicy();
             options.LoggingPolicy = new TestLoggingPolicy();
             options.Logger = new MockLogger();
 
@@ -21,24 +21,24 @@ namespace Azure.Core.Tests
 
             using (var context = pipeline.CreateContext(options, cancellation: default))
             {
-                context.Logger = new MockLogger();
-                context.Options.SetOption(typeof(RetryPolicy), new CustomRetryPolicy());
-
                 context.SetRequestLine(ServiceMethod.Get, new Uri("https://contoso.a.io"));
                 pipeline.ProcessAsync(context).Wait();
 
-                Assert.True(context.Response.Status == 1);
+                Assert.AreEqual(1, context.Response.Status);
                 var result = options.LoggingPolicy.ToString();
                 Assert.AreEqual("REQUEST: Get https://contoso.a.io/\nRESPONSE: 500\nREQUEST: Get https://contoso.a.io/\nRESPONSE: 1\n", result);
             }
         }
 
-        class CustomRetryPolicy : RetryPolicy.Settings
+        class CustomRetryPolicy : RetryPolicy
         {
-            public override int MaxRetries => 5;
-            public override bool IsSuccess(int status) => status == 1;
+            protected override bool ShouldRetry(PipelineCallContext context, int retry, out TimeSpan delay)
+            {
+                delay = TimeSpan.Zero;
+                if (retry > 5) return false;
+                if (context.Response.Status == 1) return false;
+                return true;
+            }
         }
-
-        class Options : PipelineOptions { }
     }
 }
