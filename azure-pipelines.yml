@@ -1,5 +1,13 @@
 variables:
-    - group: Test-Variable-Group-AzConfig
+ # public
+ - ${{ if eq(variables['System.TeamProject'], 'public') }}:
+   - name: connectionString
+     value: ''
+ # internal
+ - ${{ if ne(variables['System.TeamProject'], 'public') }}:
+   - group: Test-Variable-Group-AzConfig
+   - name: connectionString
+     value: $(AZ_CONFIG_CONNECTION)
 
 trigger:
 - master
@@ -9,19 +17,19 @@ jobs:
   parameters:
     name: Linux
     vmImage: 'ubuntu-16.04'
-    connectionString: $(AZ_CONFIG_CONNECTION)
+    connectionString: $(connectionString)
 
 - template: test.yml
   parameters:
     name: macOS
     vmImage: 'macOS-10.13'
-    connectionString: $(AZ_CONFIG_CONNECTION)
+    connectionString: $(connectionString)
 
 - template: test.yml
   parameters:
     name: Windows
     vmImage: 'vs2017-win2016'
-    connectionString: $(AZ_CONFIG_CONNECTION)
+    connectionString: $(connectionString)
 
 - job: 'Publish'
 
