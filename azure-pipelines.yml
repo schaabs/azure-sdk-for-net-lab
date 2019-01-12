@@ -5,12 +5,9 @@ variables:
      value: ''
  # internal
  - ${{ if ne(variables['System.TeamProject'], 'public') }}:
-   - group: Test-Variable-Group-AzConfig
+   - group: AzureSDK KeyVault - AzConfig LiveTest
    - name: connectionString
-     value: $(AZ_CONFIG_CONNECTION)
-
-trigger:
-- master
+     value: $(AzConfigConnection)
 
 jobs:
 - template: test.yml

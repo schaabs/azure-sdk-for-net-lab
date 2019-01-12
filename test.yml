@@ -15,7 +15,8 @@ jobs:
     condition: eq(variables['System.TeamProject'], 'public')
     inputs:
       projects: '**/*.Test/*.csproj'
-      command: test --filter TestCategory!=Live
+      command: test
+      arguments: --filter TestCategory!=Live
  
   - task: DotNetCoreCLI@2
     displayName: 'Test'
