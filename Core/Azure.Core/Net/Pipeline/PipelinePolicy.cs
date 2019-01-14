@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Azure.Core.Diagnostics;
+using System;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,6 +16,8 @@ namespace Azure.Core.Net.Pipeline
             var next = pipeline.Span[0];
             await next.ProcessAsync(context, pipeline.Slice(1)).ConfigureAwait(false);
         }
+
+        protected AzureEventSource Log = AzureEventSource.Singleton;
     }
 
     public abstract class PipelineTransport : PipelinePolicy

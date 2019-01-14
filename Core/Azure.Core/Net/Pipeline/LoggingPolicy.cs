@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Diagnostics.Tracing;
 using System.Threading.Tasks;
 
 namespace Azure.Core.Net.Pipeline
@@ -17,9 +18,7 @@ namespace Azure.Core.Net.Pipeline
 
         public override async Task ProcessAsync(PipelineCallContext context, ReadOnlyMemory<PipelinePolicy> pipeline)
         {
-            if (context.Logger.IsEnabledFor(TraceLevel.Info)) {
-                LogRequest(context);
-            }
+            Log.ProcessingRequest(context);
 
             var before = Stopwatch.GetTimestamp();
             await ProcessNextAsync(pipeline, context).ConfigureAwait(false);
@@ -27,27 +26,16 @@ namespace Azure.Core.Net.Pipeline
 
             var status = context.Response.Status;
             // if error status
-            if (status >= 400 && status <= 599 && (Array.IndexOf(_excludeErrors, status) == -1))
-            {
-                context.Logger.Log($"ERROR : response status {status}", TraceLevel.Error);
+            if (status >= 400 && status <= 599 && (Array.IndexOf(_excludeErrors, status) == -1)) {
+                Log.ErrorResponse(context);
             }
 
-            if (context.Logger.IsEnabledFor(TraceLevel.Info)) {
-                LogResponse(context);
-            }
+            Log.ProcessingResponse(context);
 
             var elapsedMilliseconds = (after - before) * 1000 / s_frequency;
             if (elapsedMilliseconds > s_warningThreshold) {
-                if (context.Logger.IsEnabledFor(TraceLevel.Warning)) {
-                    context.Logger.Log($"SLOW: {elapsedMilliseconds}ms");
-                }
+                Log.ResponseDelay(context, elapsedMilliseconds);
             }
         }
-
-        private static void LogResponse(PipelineCallContext context)
-            => context.Logger.Log(context);
-
-        private static void LogRequest(PipelineCallContext context)
-            => context.Logger.Log(context);
     }
 }

@@ -1,5 +1,4 @@
-﻿using Azure.Core.Diagnostics;
-using Azure.Core.Net.Pipeline;
+﻿using Azure.Core.Net.Pipeline;
 using System;
 using System.Buffers;
 using System.ComponentModel;
@@ -16,11 +15,8 @@ namespace Azure.Core.Net
         );
 
         static readonly PipelineTransport s_defaultTransport = new HttpPipelineTransport();
-        static readonly ServiceLogger s_defaultLogger = new NullLogger();
 
         public ArrayPool<byte> Pool { get; set; } = ArrayPool<byte>.Shared;
-
-        public ServiceLogger Logger { get; set; } = s_defaultLogger;
 
         public PipelineTransport Transport { get; set; } = s_defaultTransport;
 

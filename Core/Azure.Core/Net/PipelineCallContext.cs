@@ -1,5 +1,4 @@
-﻿using Azure.Core.Diagnostics;
-using System;
+﻿using System;
 using System.Buffers.Text;
 using System.ComponentModel;
 using System.IO;
@@ -15,14 +14,11 @@ namespace Azure.Core.Net
 
         public CancellationToken Cancellation { get; }
 
-        public ServiceLogger Logger { get; set; }
-
         public PipelineCallOptions Options => new PipelineCallOptions(this);
 
         protected PipelineCallContext(CancellationToken cancellation)
         {
             Cancellation = cancellation;
-            Logger = new NullLogger();
         }
 
         // TODO (pri 1): what happens if this is called after AddHeader? Especially for SocketTransport

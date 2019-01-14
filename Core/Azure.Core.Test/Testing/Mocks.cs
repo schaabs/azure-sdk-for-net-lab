@@ -1,25 +1,52 @@
-﻿using Azure.Core.Buffers;
-using Azure.Core.Diagnostics;
-using Azure.Core.Net;
+﻿using Azure.Core.Net;
 using Azure.Core.Net.Pipeline;
 using System;
-using System.Buffers;
 using System.Collections.Generic;
-using System.Diagnostics;
+using System.Diagnostics.Tracing;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Azure.Core.Testing
 {
-    public class MockLogger : ServiceLogger
+    public class TestEventListener : EventListener
     {
-        public readonly List<string> Logged = new List<string>();
-        public TraceLevel Level = TraceLevel.Verbose;
-        public override bool IsEnabledFor(TraceLevel level) => Level >= level;
+        const string SOURCE_NAME = "AzureSDK";
 
-        public override void Log(string message, TraceLevel level = TraceLevel.Info)
-            => Logged.Add($"{level} : {message}");
+        public readonly List<string> Logged = new List<string>();
+        EventLevel _enabled;
+        EventSource _source;
+
+        protected override void OnEventSourceCreated(EventSource eventSource)
+        {
+            base.OnEventSourceCreated(eventSource);
+            if(eventSource.Name == SOURCE_NAME) {
+                _source = eventSource;
+                if(_enabled != default) {
+                    EnableEvents(_source, _enabled);
+                }
+            }
+        }
+
+        public void EnableEvents(EventLevel level)
+        {
+            _enabled = level;
+            if(_source != null) {
+                EnableEvents(_source, _enabled);
+            }
+
+        }
+
+        protected override void OnEventWritten(EventWrittenEventArgs eventData)
+        {
+            base.OnEventWritten(eventData);
+            if(eventData.EventSource.Name == SOURCE_NAME) {
+                Logged.Add(eventData.EventName + " : " + eventData.Payload[0].ToString()); 
+            }
+        }
+
+        public override string ToString()
+            =>string.Join(" # ", Logged);
     }
 
     public class MockTransport : PipelineTransport

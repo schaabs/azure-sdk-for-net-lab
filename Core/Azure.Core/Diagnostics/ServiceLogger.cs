@@ -1,34 +1,91 @@
-﻿using System.ComponentModel;
-using System.Diagnostics;
+﻿using Azure.Core.Net;
+using System;
+using System.Diagnostics.Tracing;
 
+// TODO (pri 2): we should log correction/activity
+// TODO (pri 2): we should log exceptions
 namespace Azure.Core.Diagnostics
 {
-
-    // TODO (pri 1): do we really want a new abstraction? Maybe we can use TraceSource?
-    public abstract class ServiceLogger
+    [EventSource(Name = SOURCE_NAME)]
+    public sealed class AzureEventSource : EventSource
     {
-        public abstract bool IsEnabledFor(TraceLevel level);
-        public abstract void Log(string message, TraceLevel level = TraceLevel.Info);
+        // TODO (pri 3): do we want the same source name for all SDk components?
+        const string SOURCE_NAME = "AzureSDK";
 
-        public virtual void Log(object value, TraceLevel level = TraceLevel.Info)
-            => Log(value.ToString(), level);
+        const int LOG_TEXT = 1;
+        const int LOG_EXCEPTION = 2;
+        const int LOG_REQUEST = 3;
+        const int LOG_RESPONSE = 4;
+        const int LOG_DELAY = 5;
+        const int LOG_ERROR_RESPONSE = 6;
+               
+        private AzureEventSource() : base(SOURCE_NAME) { }
 
-        public static readonly ServiceLogger NullLogger = new NullLogger();
+        internal static readonly AzureEventSource Singleton = new AzureEventSource();
 
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public override bool Equals(object obj) => base.Equals(obj);
+        // TODO (pri 2): this logs just the URI. We need more
+        [NonEvent]
+        public void ProcessingRequest(PipelineCallContext request)
+            => ProcessingRequest(request.ToString());
 
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public override int GetHashCode() => base.GetHashCode();
+        [NonEvent]
+        public void ProcessingResponse(PipelineCallContext response)
+            => ProcessingResponse(response.ToString());
 
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public override string ToString() => base.ToString();
-    }
-    class NullLogger : ServiceLogger
-    {
-        public override bool IsEnabledFor(TraceLevel level)
-            => false;
+        [NonEvent]
+        public void ErrorResponse(PipelineCallContext response)
+            => ErrorResponse(response.Status);
 
-        public override void Log(string message, TraceLevel level = TraceLevel.Info) { }
+        // TODO (pri 2): there are more attribute properties we might want to set
+        [Event(LOG_REQUEST, Level = EventLevel.Informational)]
+        void ProcessingRequest(string request)
+        {
+            // TODO (pri 2): is EventKeywords.None ok?
+            if (IsEnabled(EventLevel.Informational, EventKeywords.None)) {
+                WriteEvent(LOG_REQUEST, request);
+            }
+        }
+
+        [Event(LOG_RESPONSE, Level = EventLevel.Informational)]
+        void ProcessingResponse(string response)
+        {
+            if (IsEnabled(EventLevel.Informational, EventKeywords.None)) {
+                WriteEvent(LOG_RESPONSE, response);
+            }
+        }
+
+        [Event(LOG_DELAY, Level = EventLevel.Warning)]
+        public void ResponseDelay(PipelineCallContext context, long delayMilliseconds)
+        {
+            if (IsEnabled(EventLevel.Warning, EventKeywords.None)) {
+                WriteEvent(LOG_DELAY, delayMilliseconds);
+            }
+        }
+
+        [Event(LOG_ERROR_RESPONSE, Level = EventLevel.Error)]
+        void ErrorResponse(int status)
+        {
+            if (IsEnabled(EventLevel.Error, EventKeywords.None)) {
+                WriteEvent(LOG_ERROR_RESPONSE, status);
+            }
+        }
+
+        [Event(LOG_TEXT, Level = EventLevel.Error)]
+        public void LogMessage(EventLevel level, string message)
+        {
+            if (IsEnabled(level, EventKeywords.None)) {
+                WriteEvent(LOG_TEXT, message, level);
+            }
+        }
+
+        [Event(LOG_EXCEPTION)]
+        public void LogException(Exception exception)
+        {
+            if (IsEnabled(EventLevel.Error, EventKeywords.None)) {
+                // TODO (pri 2): should this filter some information?
+                // TODO (pri 2): should this be more structured?
+                WriteEvent(LOG_EXCEPTION, exception.ToString());
+            }
+        }
     }
 }

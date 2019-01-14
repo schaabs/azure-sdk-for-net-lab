@@ -3,19 +3,24 @@ using Azure.Core.Net.Pipeline;
 using Azure.Core.Testing;
 using NUnit.Framework;
 using System;
+using System.Diagnostics.Tracing;
 
 namespace Azure.Core.Tests
 {
+    // TODO (pri 2): Do use the EventRegister NuGet package or the standalone eventRegister.exe tool, to run build-time validation of the event source classes defined in your assemblies.
     public class PipelineTests
     {
+        string expected = @"ProcessingRequest : Get https://contoso.a.io/ # ErrorResponse : 500 # ProcessingResponse : Get https://contoso.a.io/ # ProcessingRequest : Get https://contoso.a.io/ # ProcessingResponse : Get https://contoso.a.io/";
+
         [Test]
         public void Basics() {
 
             var options = new PipelineOptions();
             options.Transport = new MockTransport(500, 1);
             options.RetryPolicy = new CustomRetryPolicy();
-            options.LoggingPolicy = new TestLoggingPolicy();
-            options.Logger = new MockLogger();
+
+            var listener = new TestEventListener();
+            listener.EnableEvents(EventLevel.LogAlways);
 
             var pipeline = ClientPipeline.Create(options, "test", "1.0.0");
 
@@ -25,8 +30,8 @@ namespace Azure.Core.Tests
                 pipeline.ProcessAsync(context).Wait();
 
                 Assert.AreEqual(1, context.Response.Status);
-                var result = options.LoggingPolicy.ToString();
-                Assert.AreEqual("REQUEST: Get https://contoso.a.io/\nRESPONSE: 500\nREQUEST: Get https://contoso.a.io/\nRESPONSE: 1\n", result);
+                var result = listener.ToString();
+                Assert.AreEqual(expected, result);
             }
         }
 
