@@ -1,4 +1,8 @@
-﻿using System.Text;
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for
+// license information.
+
+using System.Text;
 using System.Text.RegularExpressions;
 using Azure.Core.Net;
 using NUnit.Framework;

@@ -1,13 +1,17 @@
-﻿using Azure.Core.Net;
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for
+// license information.
+
+using Azure.Core.Net;
 using System;
 using System.ComponentModel;
 using System.Text;
 
 namespace Azure.Core
 {
-    public struct Response : IDisposable
+    public readonly struct Response : IDisposable
     {
-        ServiceResponse _response;
+        readonly ServiceResponse _response;
 
         public Response(ServiceResponse response) => _response = response;
 
@@ -66,6 +70,12 @@ namespace Azure.Core
             _response = response;
             _contentParser = null;
             _parsedContent = parsed;
+        }
+
+        public void Deconstruct(out T result, out Response response)
+        {
+            result = Result;
+            response = new Response(_response);
         }
 
         public T Result

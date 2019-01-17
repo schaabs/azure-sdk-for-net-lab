@@ -1,4 +1,8 @@
-﻿using Azure.Core.Diagnostics;
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for
+// license information.
+
+using Azure.Core.Diagnostics;
 using System;
 using System.Runtime.CompilerServices;
 using System.Threading;

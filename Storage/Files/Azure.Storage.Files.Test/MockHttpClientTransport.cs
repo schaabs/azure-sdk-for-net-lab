@@ -1,4 +1,8 @@
-﻿using Azure.Core.Net;
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for
+// license information.
+
+using Azure.Core.Net;
 using Azure.Core.Net.Pipeline;
 using NUnit.Framework;
 using System;
@@ -11,7 +15,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using static System.Buffers.Text.Encodings;
 
-namespace Azure.Configuration.Test
+namespace Azure.ApplicationModel.Configuration.Test
 {
     abstract class MockHttpClientTransport : HttpPipelineTransport
     {
