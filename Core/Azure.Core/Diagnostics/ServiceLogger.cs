@@ -10,6 +10,7 @@ using System.Diagnostics.Tracing;
 // TODO (pri 2): we should log exceptions
 namespace Azure.Core.Diagnostics
 {
+    // TODO (pri 2): make the type internal
     [EventSource(Name = SOURCE_NAME)]
     public sealed class AzureEventSource : EventSource
     {

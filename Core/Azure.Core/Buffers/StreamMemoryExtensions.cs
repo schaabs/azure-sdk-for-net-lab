@@ -13,8 +13,10 @@ namespace Azure.Core.Buffers
 {
     public static class StreamMemoryExtensions
     {
-        public static async Task WriteAsync(this Stream stream, ReadOnlyMemory<byte> buffer, CancellationToken cancellation)
+        public static async Task WriteAsync(this Stream stream, ReadOnlyMemory<byte> buffer, CancellationToken cancellation = default)
         {
+            if (stream == null) throw new ArgumentNullException(nameof(stream));
+
             if (buffer.Length == 0) return;
             byte[] array = null;
             try
@@ -30,7 +32,7 @@ namespace Azure.Core.Buffers
                         if (array != null) ArrayPool<byte>.Shared.Return(array);
                         array = ArrayPool<byte>.Shared.Rent(buffer.Length);
                     }
-                    if (!buffer.TryCopyTo(array)) throw new Exception("could not rent buffer large enough");
+                    if (!buffer.TryCopyTo(array)) throw new Exception("could not rent large enough buffer.");
                     await stream.WriteAsync(array, 0, buffer.Length, cancellation).ConfigureAwait(false);
                 }
                 
@@ -41,8 +43,10 @@ namespace Azure.Core.Buffers
             }
         }
 
-        public static async Task WriteAsync(this Stream stream, ReadOnlySequence<byte> buffer, CancellationToken cancellation)
+        public static async Task WriteAsync(this Stream stream, ReadOnlySequence<byte> buffer, CancellationToken cancellation = default)
         {
+            if (stream == null) throw new ArgumentNullException(nameof(stream));
+
             if (buffer.Length == 0) return;
             byte[] array = null;
             try
@@ -60,7 +64,7 @@ namespace Azure.Core.Buffers
                             if (array != null) ArrayPool<byte>.Shared.Return(array);
                             array = ArrayPool<byte>.Shared.Rent(segment.Length);
                         }
-                        if (!segment.TryCopyTo(array)) throw new Exception("could not rent buffer large enough");
+                        if (!segment.TryCopyTo(array)) throw new Exception("could not rent large enough buffer.");
                         await stream.WriteAsync(array, 0, segment.Length, cancellation).ConfigureAwait(false);
                     }
                 }
@@ -71,10 +75,12 @@ namespace Azure.Core.Buffers
             }
         }
 
-        public static async Task<int> ReadAsync(this Stream stream, Memory<byte> buffer, CancellationToken cancellation)
+        public static async Task<int> ReadAsync(this Stream stream, Memory<byte> buffer, CancellationToken cancellation = default)
         {
+            if (stream == null) throw new ArgumentNullException(nameof(stream));
             if (!MemoryMarshal.TryGetArray(buffer, out ArraySegment<byte> segment))
             {
+                // TODO (pri 1): implement
                 throw new NotImplementedException();
             }
             var read = await stream.ReadAsync(segment.Array, 0, segment.Count, cancellation).ConfigureAwait(false);
