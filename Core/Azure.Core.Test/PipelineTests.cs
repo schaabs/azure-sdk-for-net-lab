@@ -2,8 +2,8 @@
 // Licensed under the MIT License. See License.txt in the project root for
 // license information.
 
-using Azure.Core.Net;
-using Azure.Core.Net.Pipeline;
+using Azure.Core.Http;
+using Azure.Core.Http.Pipeline;
 using Azure.Core.Testing;
 using NUnit.Framework;
 using System;
@@ -26,14 +26,14 @@ namespace Azure.Core.Tests
             var listener = new TestEventListener();
             listener.EnableEvents(EventLevel.LogAlways);
 
-            var pipeline = ClientPipeline.Create(options, "test", "1.0.0");
+            var pipeline = HttpPipeline.Create(options, "test", "1.0.0");
 
-            using (var context = pipeline.CreateContext(options, cancellation: default))
+            using (var message = pipeline.CreateMessage(options, cancellation: default))
             {
-                context.SetRequestLine(ServiceMethod.Get, new Uri("https://contoso.a.io"));
-                pipeline.ProcessAsync(context).Wait();
+                message.SetRequestLine(PipelineMethod.Get, new Uri("https://contoso.a.io"));
+                pipeline.ProcessAsync(message).Wait();
 
-                Assert.AreEqual(1, context.Response.Status);
+                Assert.AreEqual(1, message.Response.Status);
                 var result = listener.ToString();
                 Assert.AreEqual(expected, result);
             }
@@ -41,11 +41,11 @@ namespace Azure.Core.Tests
 
         class CustomRetryPolicy : RetryPolicy
         {
-            protected override bool ShouldRetry(PipelineCallContext context, int retry, out TimeSpan delay)
+            protected override bool ShouldRetry(HttpMessage message, int retry, out TimeSpan delay)
             {
                 delay = TimeSpan.Zero;
                 if (retry > 5) return false;
-                if (context.Response.Status == 1) return false;
+                if (message.Response.Status == 1) return false;
                 return true;
             }
         }

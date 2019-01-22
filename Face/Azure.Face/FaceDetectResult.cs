@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See License.txt in the project root for
 // license information.
 
-using Azure.Core.Net;
+using Azure.Core.Http;
 using System;
 using System.Buffers;
 using System.ComponentModel;

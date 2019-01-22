@@ -10,33 +10,33 @@ using System.Text;
 using System.Threading;
 using static System.Buffers.Text.Encodings;
 
-namespace Azure.Core.Net
+namespace Azure.Core.Http
 {
-    public abstract class PipelineCallContext  : IDisposable
+    public abstract class HttpMessage  : IDisposable
     {
         internal OptionsStore _options = new OptionsStore();
 
         public CancellationToken Cancellation { get; }
 
-        public PipelineCallOptions Options => new PipelineCallOptions(this);
+        public PipelineMessageOptions Options => new PipelineMessageOptions(this);
 
-        protected PipelineCallContext(CancellationToken cancellation)
+        protected HttpMessage(CancellationToken cancellation)
         {
             Cancellation = cancellation;
         }
 
         // TODO (pri 1): what happens if this is called after AddHeader? Especially for SocketTransport
-        public abstract void SetRequestLine(ServiceMethod method, Uri uri);
+        public abstract void SetRequestLine(PipelineMethod method, Uri uri);
 
-        public abstract void AddHeader(Header header);
+        public abstract void AddHeader(HttpHeader header);
 
         public virtual void AddHeader(string name, string value)
-            => AddHeader(new Header(name, value));
+            => AddHeader(new HttpHeader(name, value));
 
         public abstract void SetContent(PipelineContent content);
 
         // response
-        public ServiceResponse Response => new ServiceResponse(this);
+        public PipelineResponse Response => new PipelineResponse(this);
 
         // make many of these protected internal
         protected internal abstract int Status { get; }
@@ -57,16 +57,16 @@ namespace Azure.Core.Net
         public override string ToString() => base.ToString();
     }
 
-    public readonly struct ServiceResponse
+    public readonly struct PipelineResponse
     {
-        readonly PipelineCallContext _context;
+        readonly HttpMessage _message;
 
-        public ServiceResponse(PipelineCallContext context)
-            => _context = context;
+        public PipelineResponse(HttpMessage message)
+            => _message = message;
 
-        public int Status => _context.Status;
+        public int Status => _message.Status;
 
-        public Stream ContentStream => _context.ResponseContentStream;
+        public Stream ContentStream => _message.ResponseContentStream;
         
         public bool TryGetHeader(ReadOnlySpan<byte> name, out long value)
         {
@@ -78,7 +78,7 @@ namespace Azure.Core.Net
         }
 
         public bool TryGetHeader(ReadOnlySpan<byte> name, out ReadOnlySpan<byte> value)
-            => _context.TryGetHeader(name, out value);
+            => _message.TryGetHeader(name, out value);
 
         public bool TryGetHeader(ReadOnlySpan<byte> name, out string value)
         {
@@ -105,7 +105,7 @@ namespace Azure.Core.Net
             return TryGetHeader(utf8Name, out value);
         }
 
-        public void Dispose() => _context.Dispose();
+        public void Dispose() => _message.Dispose();
 
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override bool Equals(object obj) => base.Equals(obj);
@@ -116,7 +116,7 @@ namespace Azure.Core.Net
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override string ToString()
         {
-            var responseStream = _context.ResponseContentStream;
+            var responseStream = _message.ResponseContentStream;
             if (responseStream.CanSeek)
             {
                 var position = responseStream.Position;

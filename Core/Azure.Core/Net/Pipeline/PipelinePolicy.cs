@@ -8,17 +8,17 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Azure.Core.Net.Pipeline
+namespace Azure.Core.Http.Pipeline
 {
     public abstract class PipelinePolicy
     {
-        public abstract Task ProcessAsync(PipelineCallContext context, ReadOnlyMemory<PipelinePolicy> pipeline);
+        public abstract Task ProcessAsync(HttpMessage message, ReadOnlyMemory<PipelinePolicy> pipeline);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected internal static async Task ProcessNextAsync(ReadOnlyMemory<PipelinePolicy> pipeline, PipelineCallContext context)
+        protected internal static async Task ProcessNextAsync(ReadOnlyMemory<PipelinePolicy> pipeline, HttpMessage message)
         {
             var next = pipeline.Span[0];
-            await next.ProcessAsync(context, pipeline.Slice(1)).ConfigureAwait(false);
+            await next.ProcessAsync(message, pipeline.Slice(1)).ConfigureAwait(false);
         }
 
         protected AzureEventSource Log = AzureEventSource.Singleton;
@@ -26,13 +26,13 @@ namespace Azure.Core.Net.Pipeline
 
     public abstract class PipelineTransport : PipelinePolicy
     {
-        public abstract Task ProcessAsync(PipelineCallContext context);
+        public abstract Task ProcessAsync(HttpMessage message);
 
-        public abstract PipelineCallContext CreateContext(PipelineOptions options, CancellationToken cancellation);
+        public abstract HttpMessage CreateMessage(PipelineOptions options, CancellationToken cancellation);
 
-        public sealed override async Task ProcessAsync(PipelineCallContext context, ReadOnlyMemory<PipelinePolicy> next)
+        public sealed override async Task ProcessAsync(HttpMessage message, ReadOnlyMemory<PipelinePolicy> next)
         {
-            if (next.Length == 0) await ProcessAsync(context).ConfigureAwait(false);
+            if (next.Length == 0) await ProcessAsync(message).ConfigureAwait(false);
             else throw new ArgumentOutOfRangeException(nameof(next));
         }
     }

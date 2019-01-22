@@ -11,7 +11,7 @@ using Azure.Core.Testing;
 using System.Net.Http;
 using System.IO;
 using System.Text;
-using Azure.Core.Net;
+using Azure.Core.Http;
 using Azure.ApplicationModel.Configuration.Test;
 
 namespace Azure.Storage.Files.Tests

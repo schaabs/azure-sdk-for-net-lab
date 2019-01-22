@@ -3,7 +3,7 @@
 // license information.
 
 using Azure.Core;
-using Azure.Core.Net;
+using Azure.Core.Http;
 using System;
 using System.Buffers;
 using System.IO;
@@ -16,38 +16,38 @@ namespace Azure.Storage.Files
     {
         const string SdkName = "Azure.Storage.Files";
         const string SdkVersion = "v3.0demo";
-        static Header s_defaultUAHeader = Header.Common.CreateUserAgent(SdkName, SdkVersion, null);
+        static HttpHeader s_defaultUAHeader = HttpHeader.Common.CreateUserAgent(SdkName, SdkVersion, null);
     
-        static readonly Func<ServiceResponse, Stream> s_parser = (response) => {
+        static readonly Func<PipelineResponse, Stream> s_parser = (response) => {
             return response.ContentStream;
         };
 
         readonly Uri _baseUri;
         PipelineOptions _options;
-        ClientPipeline Pipeline;
+        HttpPipeline Pipeline;
 
         public FileUri(string file, PipelineOptions options = default)
         {
             if (options == default) _options = new PipelineOptions();
             else _options = options;
 
-            Pipeline = ClientPipeline.Create(_options, SdkName, SdkVersion);
+            Pipeline = HttpPipeline.Create(_options, SdkName, SdkVersion);
             _baseUri = new Uri(file);
         }
 
         public async Task<Response> CreateAsync(CancellationToken cancellation)
         {
-            PipelineCallContext context = null;
+            HttpMessage message = null;
             try {
-                context = Pipeline.CreateContext(_options, cancellation);
-                context.SetRequestLine(ServiceMethod.Put, _baseUri);
+                message = Pipeline.CreateMessage(_options, cancellation);
+                message.SetRequestLine(PipelineMethod.Put, _baseUri);
 
-                await Pipeline.ProcessAsync(context).ConfigureAwait(false);
+                await Pipeline.ProcessAsync(message).ConfigureAwait(false);
 
-                return new Response(context.Response);
+                return new Response(message.Response);
             }
             catch {
-                if (context != null) context.Dispose();
+                if (message != null) message.Dispose();
                 throw;
             }
         }
@@ -60,38 +60,38 @@ namespace Azure.Storage.Files
             if (content.CanRead == false) throw new ArgumentOutOfRangeException(nameof(content));
             if (content.CanSeek == false) throw new ArgumentOutOfRangeException(nameof(content));
 
-            PipelineCallContext context = null;
+            HttpMessage message = null;
             try {
-                context = Pipeline.CreateContext(_options, cancellation);
-                context.SetRequestLine(ServiceMethod.Put, _baseUri);
+                message = Pipeline.CreateMessage(_options, cancellation);
+                message.SetRequestLine(PipelineMethod.Put, _baseUri);
 
-                context.AddHeader(Header.Common.CreateContentLength(content.Length));
-                context.AddHeader(Header.Common.OctetStreamContentType);
-                context.SetContent(PipelineContent.Create(content));
+                message.AddHeader(HttpHeader.Common.CreateContentLength(content.Length));
+                message.AddHeader(HttpHeader.Common.OctetStreamContentType);
+                message.SetContent(PipelineContent.Create(content));
 
-                await Pipeline.ProcessAsync(context).ConfigureAwait(false);
+                await Pipeline.ProcessAsync(message).ConfigureAwait(false);
 
-                return new Response(context.Response);
+                return new Response(message.Response);
             }
             catch {
-                if (context != null) context.Dispose();
+                if (message != null) message.Dispose();
                 throw;
             }
         }
 
         public async Task<Response<Stream>> GetAsync(CancellationToken cancellation)
         {
-            PipelineCallContext context = null;
+            HttpMessage message = null;
             try {
-                context = Pipeline.CreateContext(_options, cancellation);
-                context.SetRequestLine(ServiceMethod.Get, _baseUri);
+                message = Pipeline.CreateMessage(_options, cancellation);
+                message.SetRequestLine(PipelineMethod.Get, _baseUri);
 
-                await Pipeline.ProcessAsync(context).ConfigureAwait(false);
+                await Pipeline.ProcessAsync(message).ConfigureAwait(false);
 
-                return new Response<Stream>(context.Response, s_parser);
+                return new Response<Stream>(message.Response, s_parser);
             }
             catch {
-                if (context != null) context.Dispose();
+                if (message != null) message.Dispose();
                 throw;
             }
         }

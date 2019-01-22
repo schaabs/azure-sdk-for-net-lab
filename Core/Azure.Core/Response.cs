@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See License.txt in the project root for
 // license information.
 
-using Azure.Core.Net;
+using Azure.Core.Http;
 using System;
 using System.ComponentModel;
 using System.Text;
@@ -11,9 +11,9 @@ namespace Azure.Core
 {
     public readonly struct Response : IDisposable
     {
-        readonly ServiceResponse _response;
+        readonly PipelineResponse _response;
 
-        public Response(ServiceResponse response) => _response = response;
+        public Response(PipelineResponse response) => _response = response;
 
         public int Status => _response.Status;
 
@@ -47,25 +47,25 @@ namespace Azure.Core
 
     public struct Response<T> : IDisposable
     {
-        ServiceResponse _response;
-        Func<ServiceResponse, T> _contentParser;
+        PipelineResponse _response;
+        Func<PipelineResponse, T> _contentParser;
         T _parsedContent;
 
-        public Response(ServiceResponse response)
+        public Response(PipelineResponse response)
         {
             _response = response;
             _contentParser = null;
             _parsedContent = default;
         }
 
-        public Response(ServiceResponse response, Func<ServiceResponse, T> parser)
+        public Response(PipelineResponse response, Func<PipelineResponse, T> parser)
         {
             _response = response;
             _contentParser = parser;
             _parsedContent = default;
         }
 
-        public Response(ServiceResponse response, T parsed)
+        public Response(PipelineResponse response, T parsed)
         {
             _response = response;
             _contentParser = null;

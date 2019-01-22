@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See License.txt in the project root for
 // license information.
 
-using Azure.Core.Net;
+using Azure.Core.Http;
 using System;
 using System.Diagnostics.Tracing;
 
@@ -30,16 +30,20 @@ namespace Azure.Core.Diagnostics
 
         // TODO (pri 2): this logs just the URI. We need more
         [NonEvent]
-        public void ProcessingRequest(PipelineCallContext request)
+        public void ProcessingRequest(HttpMessage request)
             => ProcessingRequest(request.ToString());
 
         [NonEvent]
-        public void ProcessingResponse(PipelineCallContext response)
+        public void ProcessingResponse(HttpMessage response)
             => ProcessingResponse(response.ToString());
 
         [NonEvent]
-        public void ErrorResponse(PipelineCallContext response)
+        public void ErrorResponse(HttpMessage response)
             => ErrorResponse(response.Status);
+
+        [NonEvent]
+        public void ResponseDelay(HttpMessage message, long delayMilliseconds)
+            => ResponseDelayCore(delayMilliseconds);
 
         // TODO (pri 2): there are more attribute properties we might want to set
         [Event(LOG_REQUEST, Level = EventLevel.Informational)]
@@ -60,7 +64,7 @@ namespace Azure.Core.Diagnostics
         }
 
         [Event(LOG_DELAY, Level = EventLevel.Warning)]
-        public void ResponseDelay(PipelineCallContext context, long delayMilliseconds)
+        void ResponseDelayCore(long delayMilliseconds)
         {
             if (IsEnabled(EventLevel.Warning, EventKeywords.None)) {
                 WriteEvent(LOG_DELAY, delayMilliseconds);

@@ -8,7 +8,7 @@ using Azure.Core.Buffers;
 using System.Threading.Tasks;
 using System.Threading;
 
-namespace Azure.Core.Net
+namespace Azure.Core.Http
 {
     public abstract class PipelineContent : IDisposable
     {

@@ -2,8 +2,8 @@
 // Licensed under the MIT License. See License.txt in the project root for
 // license information.
 
-using Azure.Core.Net;
-using Azure.Core.Net.Pipeline;
+using Azure.Core.Http;
+using Azure.Core.Http.Pipeline;
 using System;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,11 +14,11 @@ namespace Azure.Core.Testing
     {
         StringBuilder _logged = new StringBuilder();
 
-        public override async Task ProcessAsync(PipelineCallContext context, ReadOnlyMemory<PipelinePolicy> pipeline)
+        public override async Task ProcessAsync(HttpMessage message, ReadOnlyMemory<PipelinePolicy> pipeline)
         {
-            _logged.Append($"REQUEST: {context.ToString()}\n");
-            await ProcessNextAsync(pipeline, context).ConfigureAwait(false);
-            _logged.Append($"RESPONSE: {context.Response.Status}\n");
+            _logged.Append($"REQUEST: {message.ToString()}\n");
+            await ProcessNextAsync(pipeline, message).ConfigureAwait(false);
+            _logged.Append($"RESPONSE: {message.Response.Status}\n");
         }
 
         public override string ToString()

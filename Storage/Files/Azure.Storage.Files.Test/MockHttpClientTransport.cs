@@ -2,8 +2,8 @@
 // Licensed under the MIT License. See License.txt in the project root for
 // license information.
 
-using Azure.Core.Net;
-using Azure.Core.Net.Pipeline;
+using Azure.Core.Http;
+using Azure.Core.Http.Pipeline;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
@@ -68,7 +68,7 @@ namespace Azure.ApplicationModel.Configuration.Test
 
         void VerifyUserAgentHeader(HttpRequestMessage request)
         {
-            var expected = Utf8.ToString(Header.Common.CreateUserAgent(s_sdkName, s_sdkVersion).Value);
+            var expected = Utf8.ToString(HttpHeader.Common.CreateUserAgent(s_sdkName, s_sdkVersion).Value);
 
             Assert.True(request.Headers.Contains("User-Agent"));
             var userAgentValues = request.Headers.GetValues("User-Agent");

@@ -6,11 +6,11 @@ using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
 
-namespace Azure.Core.Net.Pipeline
+namespace Azure.Core.Http.Pipeline
 {
     public class LoggingPolicy : PipelinePolicy
     {
-        static readonly long s_warningThreshold = 3;
+        static readonly long s_delayWarningThreshold = 3000; // 3000ms
         static readonly long s_frequency = Stopwatch.Frequency;
 
         int[] _excludeErrors = Array.Empty<int>();
@@ -19,25 +19,26 @@ namespace Azure.Core.Net.Pipeline
         public LoggingPolicy(params int[] excludeErrors)
             => _excludeErrors = excludeErrors;
 
-        public override async Task ProcessAsync(PipelineCallContext context, ReadOnlyMemory<PipelinePolicy> pipeline)
+        // TODO (pri 1): we should remove sensitive information, e.g. keys
+        public override async Task ProcessAsync(HttpMessage message, ReadOnlyMemory<PipelinePolicy> pipeline)
         {
-            Log.ProcessingRequest(context);
+            Log.ProcessingRequest(message);
 
             var before = Stopwatch.GetTimestamp();
-            await ProcessNextAsync(pipeline, context).ConfigureAwait(false);
+            await ProcessNextAsync(pipeline, message).ConfigureAwait(false);
             var after = Stopwatch.GetTimestamp();
 
-            var status = context.Response.Status;
+            var status = message.Response.Status;
             // if error status
             if (status >= 400 && status <= 599 && (Array.IndexOf(_excludeErrors, status) == -1)) {
-                Log.ErrorResponse(context);
+                Log.ErrorResponse(message);
             }
 
-            Log.ProcessingResponse(context);
+            Log.ProcessingResponse(message);
 
             var elapsedMilliseconds = (after - before) * 1000 / s_frequency;
-            if (elapsedMilliseconds > s_warningThreshold) {
-                Log.ResponseDelay(context, elapsedMilliseconds);
+            if (elapsedMilliseconds > s_delayWarningThreshold) {
+                Log.ResponseDelay(message, elapsedMilliseconds);
             }
         }
     }

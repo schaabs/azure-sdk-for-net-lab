@@ -4,9 +4,9 @@
 
 using System;
 
-namespace Azure.Core.Net
+namespace Azure.Core.Http
 {
-    public enum ServiceMethod : byte
+    public enum PipelineMethod : byte
     {
         Get,
         Post,

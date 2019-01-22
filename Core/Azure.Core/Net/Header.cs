@@ -9,13 +9,13 @@ using static System.Buffers.Text.Encodings;
 using System.Buffers;
 using System.ComponentModel;
 
-namespace Azure.Core.Net
+namespace Azure.Core.Http
 {
-    public readonly struct Header : IEquatable<Header>
+    public readonly struct HttpHeader : IEquatable<HttpHeader>
     {
         readonly byte[] _utf8;
 
-        public Header(ReadOnlySpan<byte> name, ReadOnlySpan<byte> value)
+        public HttpHeader(ReadOnlySpan<byte> name, ReadOnlySpan<byte> value)
         {
             int length = name.Length + value.Length + 3;
             _utf8 = new byte[length];
@@ -27,7 +27,7 @@ namespace Azure.Core.Net
             _utf8[length - 1] = (byte)'\n';
         }
 
-        public Header(ReadOnlySpan<byte> name, string value)
+        public HttpHeader(ReadOnlySpan<byte> name, string value)
         {
             int length = name.Length + value.Length + 3;
             _utf8 = new byte[length];
@@ -45,7 +45,7 @@ namespace Azure.Core.Net
             _utf8[length - 1] = (byte)'\n';
         }
 
-        public Header(string name, string value)
+        public HttpHeader(string name, string value)
         {
             int length = name.Length + value.Length + 3;
             _utf8 = new byte[length];
@@ -65,7 +65,7 @@ namespace Azure.Core.Net
             _utf8[length - 1] = (byte)'\n';
         }
 
-        internal Header(byte[] full) => _utf8 = full;
+        internal HttpHeader(byte[] full) => _utf8 = full;
 
         public ReadOnlySpan<byte> Value
         {
@@ -106,13 +106,13 @@ namespace Azure.Core.Net
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override bool Equals(object obj)
         {
-            if(obj is Header header) {
+            if(obj is HttpHeader header) {
                 return Equals(header);
             }
             return false;
         }
 
-        public bool Equals(Header other)
+        public bool Equals(HttpHeader other)
             => _utf8.AsSpan().SequenceEqual(other._utf8);
 
         public static class Constants
@@ -145,30 +145,30 @@ namespace Azure.Core.Net
 
         public static class Common
         {
-            public static readonly Header JsonContentType = new Header(Constants.ContentType, Constants.ApplicationJson);
-            public static readonly Header OctetStreamContentType = new Header(Constants.ContentType, Constants.ApplicationOctetStream);
+            public static readonly HttpHeader JsonContentType = new HttpHeader(Constants.ContentType, Constants.ApplicationJson);
+            public static readonly HttpHeader OctetStreamContentType = new HttpHeader(Constants.ContentType, Constants.ApplicationOctetStream);
 
             // TODO (pri 3): eliminate this allocations
             static readonly string PlatfromInformation = $"({RuntimeInformation.FrameworkDescription}; {RuntimeInformation.OSDescription})";
 
             // TODO (pri 3): eliminate this allocations
-            public static Header CreateUserAgent(string sdkName, string sdkVersion, string applicationId = default)
+            public static HttpHeader CreateUserAgent(string sdkName, string sdkVersion, string applicationId = default)
             {
                 byte[] utf8 = null;
                 if (applicationId == default) utf8 = Encoding.ASCII.GetBytes($"User-Agent:{sdkName}/{sdkVersion} {PlatfromInformation}\r\n");
                 else utf8 = Encoding.ASCII.GetBytes($"User-Agent:{applicationId} {sdkName}/{sdkVersion} {PlatfromInformation}\r\n");
-                return new Header(utf8);
+                return new HttpHeader(utf8);
             }
 
             // TODO (pri 3): eliminate this allocations
-            public static Header CreateContentLength(long length)
+            public static HttpHeader CreateContentLength(long length)
             {
                 byte[] utf8 = Encoding.ASCII.GetBytes($"Content-Length:{length}\r\n");
-                return new Header(utf8);
+                return new HttpHeader(utf8);
             }
 
             // TODO (pri 3): eliminate this allocations
-            public static Header CreateHost(ReadOnlySpan<byte> hostName)
+            public static HttpHeader CreateHost(ReadOnlySpan<byte> hostName)
             {
                 var buffer = new byte[Constants.Host.Length + hostName.Length + 3];
                 Constants.Host.CopyTo(buffer);
@@ -176,7 +176,7 @@ namespace Azure.Core.Net
                 hostName.CopyTo(buffer.AsSpan(Constants.Host.Length + 1));
                 buffer[buffer.Length - 1] = (byte)'\n';
                 buffer[buffer.Length - 2] = (byte)'\r';
-                return new Header(buffer);
+                return new HttpHeader(buffer);
             }
         }
     }

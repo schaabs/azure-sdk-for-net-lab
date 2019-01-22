@@ -2,8 +2,8 @@
 // Licensed under the MIT License. See License.txt in the project root for
 // license information.
 
-using Azure.Core.Net;
-using Azure.Core.Net.Pipeline;
+using Azure.Core.Http;
+using Azure.Core.Http.Pipeline;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Tracing;
@@ -61,36 +61,36 @@ namespace Azure.Core.Testing
         public MockTransport(params int[] statusCodes)
             => _statusCodes = statusCodes;
 
-        public override PipelineCallContext CreateContext(PipelineOptions options, CancellationToken cancellation)
-            => new Context(ref options, cancellation);
+        public override HttpMessage CreateMessage(PipelineOptions options, CancellationToken cancellation)
+            => new Message(ref options, cancellation);
 
-        public override Task ProcessAsync(PipelineCallContext context)
+        public override Task ProcessAsync(HttpMessage message)
         {
-            var mockContext = context as Context;
-            if (mockContext == null) throw new InvalidOperationException("the context is not compatible with the transport");
+            var mockMessage = message as Message;
+            if (mockMessage == null) throw new InvalidOperationException("the message is not compatible with the transport");
 
-            mockContext.SetStatus(_statusCodes[_index++]);
+            mockMessage.SetStatus(_statusCodes[_index++]);
             if (_index >= _statusCodes.Length) _index = 0;
             return Task.CompletedTask;
         }
 
-        class Context : PipelineCallContext
+        class Message : HttpMessage
         {
             string _uri;
             int _status;
-            ServiceMethod _method;
+            PipelineMethod _method;
 
             protected override int Status => _status;
 
             protected override Stream ResponseContentStream => throw new NotImplementedException();
 
-            public Context(ref PipelineOptions client, CancellationToken cancellation)
+            public Message(ref PipelineOptions client, CancellationToken cancellation)
                 : base(cancellation)
             { }
 
             public void SetStatus(int status) => _status = status;
 
-            public override void SetRequestLine(ServiceMethod method, Uri uri)
+            public override void SetRequestLine(PipelineMethod method, Uri uri)
             {
                 _uri = uri.ToString();
                 _method = method;
@@ -105,7 +105,7 @@ namespace Azure.Core.Testing
                 return false;
             }
 
-            public override void AddHeader(Header header)
+            public override void AddHeader(HttpHeader header)
             {
             }
 

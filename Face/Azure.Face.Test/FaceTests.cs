@@ -3,7 +3,7 @@
 // license information.
 
 using Azure.Core;
-using Azure.Core.Net;
+using Azure.Core.Http;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using System;
