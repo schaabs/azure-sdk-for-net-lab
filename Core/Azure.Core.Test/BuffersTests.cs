@@ -5,6 +5,7 @@
 using Azure.Core.Buffers;
 using Azure.Core.Testing;
 using NUnit.Framework;
+using System;
 
 namespace Azure.Core.Tests
 {
