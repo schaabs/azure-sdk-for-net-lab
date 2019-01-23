@@ -10,7 +10,22 @@ variables:
      value: $(AzConfigConnection)
 
 jobs:
+- job: 'Publish'
+
+  pool:
+    vmImage: 'ubuntu-16.04'
+
+  steps:
+  - script: dotnet pack --output $(Build.ArtifactStagingDirectory)
+    displayName: 'Pack'
+
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish'
+
 - job: 'Test'
+
+  dependsOn:
+    - 'Publish'
 
   strategy:
     matrix:
@@ -41,18 +56,3 @@ jobs:
       inputs:
         projects: '**/*.Test/*.csproj'
         command: test
-
-- job: 'Publish'
-
-  dependsOn:
-    - 'Test'
-
-  pool:
-    vmImage: 'ubuntu-16.04'
-
-  steps:
-  - script: dotnet pack --output $(Build.ArtifactStagingDirectory)
-    displayName: 'Pack'
-
-  - task: PublishBuildArtifacts@1
-    displayName: 'Publish'
