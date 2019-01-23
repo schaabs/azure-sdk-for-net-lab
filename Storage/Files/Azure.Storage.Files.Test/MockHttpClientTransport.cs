@@ -1,5 +1,9 @@
-﻿using Azure.Core.Net;
-using Azure.Core.Net.Pipeline;
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for
+// license information.
+
+using Azure.Core.Http;
+using Azure.Core.Http.Pipeline;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
@@ -11,7 +15,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using static System.Buffers.Text.Encodings;
 
-namespace Azure.Configuration.Test
+namespace Azure.ApplicationModel.Configuration.Test
 {
     abstract class MockHttpClientTransport : HttpPipelineTransport
     {
@@ -64,7 +68,7 @@ namespace Azure.Configuration.Test
 
         void VerifyUserAgentHeader(HttpRequestMessage request)
         {
-            var expected = Utf8.ToString(Header.Common.CreateUserAgent(s_sdkName, s_sdkVersion).Value);
+            var expected = Utf8.ToString(HttpHeader.Common.CreateUserAgent(s_sdkName, s_sdkVersion).Value);
 
             Assert.True(request.Headers.Contains("User-Agent"));
             var userAgentValues = request.Headers.GetValues("User-Agent");

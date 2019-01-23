@@ -1,4 +1,8 @@
-﻿using System;
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for
+// license information.
+
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
@@ -8,31 +12,31 @@ using System.Threading;
 using System.Threading.Tasks;
 using static System.Buffers.Text.Encodings;
 
-namespace Azure.Core.Net.Pipeline
+namespace Azure.Core.Http.Pipeline
 {
     // TODO (pri 2): implement chunked encoding
     public class HttpPipelineTransport : PipelineTransport
     {
         static readonly HttpClient s_client = new HttpClient();
 
-        public sealed override PipelineCallContext CreateContext(PipelineOptions options, CancellationToken cancellation)
-            => new Context(cancellation);
+        public sealed override HttpMessage CreateMessage(PipelineOptions options, CancellationToken cancellation)
+            => new Message(cancellation);
 
-        public sealed override async Task ProcessAsync(PipelineCallContext context)
+        public sealed override async Task ProcessAsync(HttpMessage message)
         {
-            var httpTransportContext = context as Context;
-            if (httpTransportContext == null) throw new InvalidOperationException("the context is not compatible with the transport");
+            var httpTransportMessage = message as Message;
+            if (httpTransportMessage == null) throw new InvalidOperationException("the message is not compatible with the transport");
 
-            HttpRequestMessage httpRequest = httpTransportContext.BuildRequestMessage();
+            HttpRequestMessage httpRequest = httpTransportMessage.BuildRequestMessage();
 
-            HttpResponseMessage responseMessage = await ProcessCoreAsync(context.Cancellation, httpRequest).ConfigureAwait(false);
-            httpTransportContext.ProcessResponseMessage(responseMessage);
+            HttpResponseMessage responseMessage = await ProcessCoreAsync(message.Cancellation, httpRequest).ConfigureAwait(false);
+            httpTransportMessage.ProcessResponseMessage(responseMessage);
         }
 
         protected virtual async Task<HttpResponseMessage> ProcessCoreAsync(CancellationToken cancellation, HttpRequestMessage httpRequest)
             => await s_client.SendAsync(httpRequest, cancellation).ConfigureAwait(false);
 
-        sealed class Context : PipelineCallContext
+        sealed class Message : HttpMessage
         {
             string _contentTypeHeaderValue;
             string _contentLengthHeaderValue;
@@ -40,17 +44,17 @@ namespace Azure.Core.Net.Pipeline
             HttpRequestMessage _requestMessage;
             HttpResponseMessage _responseMessage;
 
-            public Context(CancellationToken cancellation) : base(cancellation)
+            public Message(CancellationToken cancellation) : base(cancellation)
                 => _requestMessage = new HttpRequestMessage();
 
             #region Request
-            public override void SetRequestLine(ServiceMethod method, Uri uri)
+            public override void SetRequestLine(PipelineMethod method, Uri uri)
             {
                 _requestMessage.Method = ToHttpClientMethod(method);
                 _requestMessage.RequestUri = uri;
             }
 
-            public override void AddHeader(Header header)
+            public override void AddHeader(HttpHeader header)
             {
                 var valueString = Utf8.ToString(header.Value);
                 var nameString = Utf8.ToString(header.Name);
@@ -135,13 +139,13 @@ namespace Azure.Core.Net.Pipeline
             public override string ToString() =>
                 _responseMessage!=null? _responseMessage.ToString() : _requestMessage.ToString();
 
-            public static HttpMethod ToHttpClientMethod(ServiceMethod method)
+            public static HttpMethod ToHttpClientMethod(PipelineMethod method)
             {
                 switch (method) {
-                    case ServiceMethod.Get: return HttpMethod.Get;
-                    case ServiceMethod.Post: return HttpMethod.Post;
-                    case ServiceMethod.Put: return HttpMethod.Put;
-                    case ServiceMethod.Delete: return HttpMethod.Delete;
+                    case PipelineMethod.Get: return HttpMethod.Get;
+                    case PipelineMethod.Post: return HttpMethod.Post;
+                    case PipelineMethod.Put: return HttpMethod.Put;
+                    case PipelineMethod.Delete: return HttpMethod.Delete;
 
                     default: throw new NotImplementedException();
                 }

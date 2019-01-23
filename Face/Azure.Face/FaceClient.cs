@@ -1,8 +1,11 @@
-﻿using Azure.Core;
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for
+// license information.
+
+using Azure.Core;
 using Azure.Core.Buffers;
-using Azure.Core.Net;
+using Azure.Core.Http;
 using System;
-using Azure.Core.Buffers;
 using System.ComponentModel;
 using System.IO;
 using System.Text;
@@ -17,10 +20,10 @@ namespace Azure.Face
         const string SdkName = "Azure.Face";
         const string SdkVersion = "1.0.0";
 
-        ClientPipeline _client;
+        HttpPipeline _client;
         PipelineOptions _options;
         Uri _baseUrl;
-        Header _keyHeader;
+        HttpHeader _keyHeader;
 
         // TODO (pri 2): changing Application ID is not really working
         public readonly FaceServiceOptions Options = new FaceServiceOptions("v1.0");
@@ -41,8 +44,8 @@ namespace Azure.Face
         {
             _options = options;
             _baseUrl = baseUrl;
-            _keyHeader = new Header(s_keyHeaderName, key);
-            _client = ClientPipeline.Create(options, SdkName, SdkVersion);
+            _keyHeader = new HttpHeader(s_keyHeaderName, key);
+            _client = HttpPipeline.Create(options, SdkName, SdkVersion);
         }
 
         // TODO (pri 2): I think I want to change it such that response details are a property on the deserialized type, but then the deserialization would be eager.
@@ -54,19 +57,19 @@ namespace Azure.Face
             if (options == null) options = new FaceDetectOptions();
             Uri uri = BuildUri(options);
 
-            PipelineCallContext context = null;
+            HttpMessage message = null;
             try
             {
-                context = _client.CreateContext(_options, cancellation);
+                message = _client.CreateMessage(_options, cancellation);
 
-                context.SetRequestLine(ServiceMethod.Post, uri);
-                context.AddHeader(_keyHeader);
-                context.AddHeader(Header.Common.JsonContentType);
-                context.SetContent(new FaceContent(image, context));
+                message.SetRequestLine(PipelineMethod.Post, uri);
+                message.AddHeader(_keyHeader);
+                message.AddHeader(HttpHeader.Common.JsonContentType);
+                message.SetContent(new FaceContent(image, message));
 
-                await _client.ProcessAsync(context).ConfigureAwait(false);
+                await _client.ProcessAsync(message).ConfigureAwait(false);
 
-                ServiceResponse response = context.Response;
+                PipelineResponse response = message.Response;
                 if (!response.TryGetHeader(s_contentLength, out long contentLength)) {
                     throw new Exception("bad response: no content length header");
                 }
@@ -74,7 +77,7 @@ namespace Azure.Face
                 var buffer = new byte[contentLength];
                 var read = await response.ContentStream.ReadAsync(buffer, cancellation);
 
-                Func<ServiceResponse, FaceDetectResult> contentParser = null;
+                Func<PipelineResponse, FaceDetectResult> contentParser = null;
                 if (response.Status == 200) {
                     contentParser = (rsp) => { return FaceDetectResult.Parse(new ReadOnlySequence<byte>(buffer, 0, read)); };
                 }
@@ -82,7 +85,7 @@ namespace Azure.Face
             }
             catch
             {
-                if (context != null) context.Dispose();
+                if (message != null) message.Dispose();
                 throw;
             }
         }
@@ -95,20 +98,20 @@ namespace Azure.Face
             if (options == null) options = new FaceDetectOptions();
             Uri uri = BuildUri(options);
 
-            PipelineCallContext context = null;
+            HttpMessage message = null;
             try
             {
-                context = _client.CreateContext(_options, cancellation);
-                context.SetRequestLine(ServiceMethod.Post, uri);
+                message = _client.CreateMessage(_options, cancellation);
+                message.SetRequestLine(PipelineMethod.Post, uri);
 
-                context.AddHeader(_keyHeader);
-                context.AddHeader(Header.Common.OctetStreamContentType);
+                message.AddHeader(_keyHeader);
+                message.AddHeader(HttpHeader.Common.OctetStreamContentType);
 
-                SetContentStream(context, imagePath);
+                SetContentStream(message, imagePath);
 
-                await _client.ProcessAsync(context).ConfigureAwait(false);
+                await _client.ProcessAsync(message).ConfigureAwait(false);
 
-                ServiceResponse response = context.Response;
+                PipelineResponse response = message.Response;
                 if (!response.TryGetHeader(s_contentLength, out long contentLength)) {
                     throw new Exception("bad response: no content length header");
                 }
@@ -116,7 +119,7 @@ namespace Azure.Face
                 var buffer = new byte[contentLength];
                 var read = await response.ContentStream.ReadAsync(buffer, cancellation);
 
-                Func<ServiceResponse, FaceDetectResult> contentParser = null;
+                Func<PipelineResponse, FaceDetectResult> contentParser = null;
                 if (response.Status == 200)
                 {
                     contentParser = (rsp) => { return FaceDetectResult.Parse(new ReadOnlySequence<byte>(buffer, 0, read)); };
@@ -125,7 +128,7 @@ namespace Azure.Face
             }
             catch
             {
-                if (context != null) context.Dispose();
+                if (message != null) message.Dispose();
                 throw;
             }
         }
@@ -136,30 +139,30 @@ namespace Azure.Face
             if (options == null) options = new FaceDetectOptions();
             Uri uri = BuildUri(options);
 
-            PipelineCallContext context = null;
+            HttpMessage message = null;
             try
             {
-                context = _client.CreateContext(_options, cancellation);
-                context.SetRequestLine(ServiceMethod.Post, uri);
+                message = _client.CreateMessage(_options, cancellation);
+                message.SetRequestLine(PipelineMethod.Post, uri);
 
-                context.AddHeader(_keyHeader);
-                context.AddHeader(Header.Common.JsonContentType);
-                context.SetContent(new FaceContent(image, context));
+                message.AddHeader(_keyHeader);
+                message.AddHeader(HttpHeader.Common.JsonContentType);
+                message.SetContent(new FaceContent(image, message));
 
-                await _client.ProcessAsync(context).ConfigureAwait(false);
+                await _client.ProcessAsync(message).ConfigureAwait(false);
 
-                return new Response<Stream>(context.Response, context.Response.ContentStream);
+                return new Response<Stream>(message.Response, message.Response.ContentStream);
             }
             catch
             {
-                if (context != null) context.Dispose();
+                if (message != null) message.Dispose();
                 throw;
             }
         }
 
         public struct FaceServiceOptions
         {
-            internal Header UserAgentHeader;
+            internal HttpHeader UserAgentHeader;
             internal string ApiVersion;
             string _applicationId;
 
@@ -167,7 +170,7 @@ namespace Azure.Face
             {
                 ApiVersion = apiVersion;
                 _applicationId = default;
-                UserAgentHeader = Header.Common.CreateUserAgent(sdkName: "Azure-CognitiveServices-Face", sdkVersion: "1.0.0", _applicationId);
+                UserAgentHeader = HttpHeader.Common.CreateUserAgent(sdkName: "Azure-CognitiveServices-Face", sdkVersion: "1.0.0", _applicationId);
             }
 
             public string ApplicationId
@@ -176,7 +179,7 @@ namespace Azure.Face
                 set {
                     if (string.Equals(_applicationId, value, StringComparison.Ordinal)) return;
                     _applicationId = value;
-                    UserAgentHeader = Header.Common.CreateUserAgent(sdkName: "Azure-CognitiveServices-Face", sdkVersion: "1.0.0", _applicationId);
+                    UserAgentHeader = HttpHeader.Common.CreateUserAgent(sdkName: "Azure-CognitiveServices-Face", sdkVersion: "1.0.0", _applicationId);
                 }
             }
 
@@ -203,13 +206,13 @@ namespace Azure.Face
         class FaceContent : PipelineContent
         {
             Uri _image;
-            PipelineCallContext _context;
+            HttpMessage _message;
             static int s_len = @"{""url"": """.Length + @"""}".Length;
 
-            public FaceContent(Uri image, PipelineCallContext context)
+            public FaceContent(Uri image, HttpMessage message)
             {
                 _image = image;
-                _context = context;
+                _message = message;
             }
 
             public override bool TryComputeLength(out long length)
@@ -233,12 +236,12 @@ namespace Azure.Face
             }
         }
 
-        static void SetContentStream(PipelineCallContext context, string imagePath)
+        static void SetContentStream(HttpMessage message, string imagePath)
         {
             byte[] temp = new byte[4096];
             var stream = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, true);
-            context.SetContent(PipelineContent.Create(stream));
-            context.AddHeader(Header.Common.CreateContentLength(stream.Length));
+            message.SetContent(PipelineContent.Create(stream));
+            message.AddHeader(HttpHeader.Common.CreateContentLength(stream.Length));
         }
 
         #region string table

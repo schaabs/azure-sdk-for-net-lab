@@ -1,14 +1,18 @@
-﻿using NUnit.Framework;
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for
+// license information.
+
+using NUnit.Framework;
 using System;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using Azure.Configuration.Test;
 using Azure.Core.Testing;
 using System.Net.Http;
 using System.IO;
 using System.Text;
-using Azure.Core.Net;
+using Azure.Core.Http;
+using Azure.ApplicationModel.Configuration.Test;
 
 namespace Azure.Storage.Files.Tests
 {

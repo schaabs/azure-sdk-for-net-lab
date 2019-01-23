@@ -1,12 +1,16 @@
-﻿using Azure.Core.Net.Pipeline;
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for
+// license information.
+
+using Azure.Core.Http.Pipeline;
 using System;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Azure.Core.Net
+namespace Azure.Core.Http
 {
-    public struct ClientPipeline
+    public struct HttpPipeline
     {
         PipelinePolicy[] _pipeline;
         int _pipelineCount;
@@ -25,14 +29,14 @@ namespace Azure.Core.Net
             }
         }
 
-        internal ClientPipeline(PipelineTransport transport)
+        internal HttpPipeline(PipelineTransport transport)
         {
             _pipeline = new PipelinePolicy[4];
             _pipeline[_pipeline.Length - 1] = transport;
             _pipelineCount = 1;
         }
 
-        internal ClientPipeline(PipelineTransport transport, params PipelinePolicy[] policies)
+        internal HttpPipeline(PipelineTransport transport, params PipelinePolicy[] policies)
             : this(transport)
         {
             foreach (var policy in policies) AddPolicy(policy);
@@ -53,11 +57,11 @@ namespace Azure.Core.Net
             return policy;
         }
 
-        public static ClientPipeline Create(PipelineOptions options, string sdkName, string sdkVersion)
+        public static HttpPipeline Create(PipelineOptions options, string sdkName, string sdkVersion)
         {
-            var ua = Header.Common.CreateUserAgent(sdkName, sdkVersion, options.ApplicationId);
+            var ua = HttpHeader.Common.CreateUserAgent(sdkName, sdkVersion, options.ApplicationId);
 
-            var pipeline = new ClientPipeline(
+            var pipeline = new HttpPipeline(
                 options.Transport,
                 options.LoggingPolicy,
                 options.RetryPolicy,
@@ -66,12 +70,12 @@ namespace Azure.Core.Net
             return pipeline;
         }
 
-        public PipelineCallContext CreateContext(PipelineOptions options, CancellationToken cancellation)
-            => Transport.CreateContext(options, cancellation);
+        public HttpMessage CreateMessage(PipelineOptions options, CancellationToken cancellation)
+            => Transport.CreateMessage(options, cancellation);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public async Task ProcessAsync(PipelineCallContext context)
-            => await PipelinePolicy.ProcessNextAsync(Pipeline, context).ConfigureAwait(false);
+        public async Task ProcessAsync(HttpMessage message)
+            => await PipelinePolicy.ProcessNextAsync(Pipeline, message).ConfigureAwait(false);
     }
 }
 

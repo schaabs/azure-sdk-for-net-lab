@@ -1,5 +1,9 @@
-﻿using Azure.Core;
-using Azure.Core.Net;
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for
+// license information.
+
+using Azure.Core;
+using Azure.Core.Http;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,10 +13,10 @@ using System.Threading.Tasks;
 // TODO (pri 1): Support "Time-Based Access" 
 // TODO (pri 1): Support "KeyValue Revisions"
 // TODO (pri 1): Support "Real-time Consistency"
-// TODO (pri 2): Add retry policy with automatic throttling
 // TODO (pri 2): Add support for filters (fields, label, etc.)
 // TODO (pri 2): Make sure the whole object gets deserialized/serialized.
-namespace Azure.Configuration
+// TODO (pri 3): Add retry policy with automatic throttling
+namespace Azure.ApplicationModel.Configuration
 {
     public partial class ConfigurationClient
     {
@@ -23,7 +27,7 @@ namespace Azure.Configuration
         readonly string _credential;
         readonly byte[] _secret;
         PipelineOptions _options;
-        ClientPipeline Pipeline;
+        HttpPipeline Pipeline;
 
         public ConfigurationClient(string connectionString)
             : this(connectionString, options: new PipelineOptions())
@@ -32,8 +36,11 @@ namespace Azure.Configuration
 
         public ConfigurationClient(string connectionString, PipelineOptions options)
         {
+            if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
+            if (options == null) throw new ArgumentNullException(nameof(options));
+
             _options = options;
-            Pipeline = ClientPipeline.Create(_options, SdkName, SdkVersion);
+            Pipeline = HttpPipeline.Create(_options, SdkName, SdkVersion);
             ParseConnectionString(connectionString, out _baseUri, out _credential, out _secret);
         }
 
@@ -42,26 +49,26 @@ namespace Azure.Configuration
             if (setting == null) throw new ArgumentNullException(nameof(setting));
             if (string.IsNullOrEmpty(setting.Key)) throw new ArgumentNullException($"{nameof(setting)}.{nameof(setting.Key)}");
 
-            Uri uri = BuildUrlForKvRoute(setting);
+            Uri uri = BuildUriForKvRoute(setting);
 
-            using (PipelineCallContext context = Pipeline.CreateContext(_options, cancellation))
+            using (HttpMessage message = Pipeline.CreateMessage(_options, cancellation))
             {
                 ReadOnlyMemory<byte> content = Serialize(setting);
 
-                context.SetRequestLine(ServiceMethod.Put, uri);
+                message.SetRequestLine(PipelineMethod.Put, uri);
 
-                context.AddHeader("Host", uri.Host);
-                context.AddHeader(IfNoneMatchWildcard);
-                context.AddHeader(MediaTypeKeyValueApplicationHeader);
-                context.AddHeader(Header.Common.JsonContentType);
-                context.AddHeader(Header.Common.CreateContentLength(content.Length));
-                AddAuthenticationHeaders(context, uri, ServiceMethod.Put, content, _secret, _credential);
+                message.AddHeader("Host", uri.Host);
+                message.AddHeader(IfNoneMatchWildcard);
+                message.AddHeader(MediaTypeKeyValueApplicationHeader);
+                message.AddHeader(HttpHeader.Common.JsonContentType);
+                message.AddHeader(HttpHeader.Common.CreateContentLength(content.Length));
+                AddAuthenticationHeaders(message, uri, PipelineMethod.Put, content, _secret, _credential);
 
-                context.SetContent(PipelineContent.Create(content));
+                message.SetContent(PipelineContent.Create(content));
 
-                await Pipeline.ProcessAsync(context).ConfigureAwait(false);
+                await Pipeline.ProcessAsync(message).ConfigureAwait(false);
 
-                return await CreateResponse(context);
+                return await CreateResponse(message);
             }
         }
 
@@ -70,25 +77,25 @@ namespace Azure.Configuration
             if (setting == null) throw new ArgumentNullException(nameof(setting));
             if (string.IsNullOrEmpty(setting.Key)) throw new ArgumentNullException($"{nameof(setting)}.{nameof(setting.Key)}");
 
-            Uri uri = BuildUrlForKvRoute(setting);
+            Uri uri = BuildUriForKvRoute(setting);
 
-            using (PipelineCallContext context = Pipeline.CreateContext(_options, cancellation))
+            using (HttpMessage message = Pipeline.CreateMessage(_options, cancellation))
             {
                 ReadOnlyMemory<byte> content = Serialize(setting);
 
-                context.SetRequestLine(ServiceMethod.Put, uri);
+                message.SetRequestLine(PipelineMethod.Put, uri);
 
-                context.AddHeader("Host", uri.Host);
-                context.AddHeader(MediaTypeKeyValueApplicationHeader);
-                context.AddHeader(Header.Common.JsonContentType);
-                context.AddHeader(Header.Common.CreateContentLength(content.Length));
-                AddAuthenticationHeaders(context, uri, ServiceMethod.Put, content, _secret, _credential);
+                message.AddHeader("Host", uri.Host);
+                message.AddHeader(MediaTypeKeyValueApplicationHeader);
+                message.AddHeader(HttpHeader.Common.JsonContentType);
+                message.AddHeader(HttpHeader.Common.CreateContentLength(content.Length));
+                AddAuthenticationHeaders(message, uri, PipelineMethod.Put, content, _secret, _credential);
 
-                context.SetContent(PipelineContent.Create(content));
+                message.SetContent(PipelineContent.Create(content));
 
-                await Pipeline.ProcessAsync(context).ConfigureAwait(false);
+                await Pipeline.ProcessAsync(message).ConfigureAwait(false);
 
-                return await CreateResponse(context);
+                return await CreateResponse(message);
             }
         }
 
@@ -98,26 +105,26 @@ namespace Azure.Configuration
             if (string.IsNullOrEmpty(setting.Key)) throw new ArgumentNullException($"{nameof(setting)}.{nameof(setting.Key)}");
             if (string.IsNullOrEmpty(setting.ETag)) throw new ArgumentNullException($"{nameof(setting)}.{nameof(setting.ETag)}");
 
-            Uri uri = BuildUrlForKvRoute(setting);
+            Uri uri = BuildUriForKvRoute(setting);
 
-            using (PipelineCallContext context = Pipeline.CreateContext(_options, cancellation))
+            using (HttpMessage message = Pipeline.CreateMessage(_options, cancellation))
             {
                 ReadOnlyMemory<byte> content = Serialize(setting);
 
-                context.SetRequestLine(ServiceMethod.Put, uri);
+                message.SetRequestLine(PipelineMethod.Put, uri);
 
-                context.AddHeader("Host", uri.Host);
-                context.AddHeader(IfMatchName, $"\"{setting.ETag}\"");
-                context.AddHeader(MediaTypeKeyValueApplicationHeader);
-                context.AddHeader(Header.Common.JsonContentType);
-                context.AddHeader(Header.Common.CreateContentLength(content.Length));
-                AddAuthenticationHeaders(context, uri, ServiceMethod.Put, content, _secret, _credential);
+                message.AddHeader("Host", uri.Host);
+                message.AddHeader(IfMatchName, $"\"{setting.ETag}\"");
+                message.AddHeader(MediaTypeKeyValueApplicationHeader);
+                message.AddHeader(HttpHeader.Common.JsonContentType);
+                message.AddHeader(HttpHeader.Common.CreateContentLength(content.Length));
+                AddAuthenticationHeaders(message, uri, PipelineMethod.Put, content, _secret, _credential);
 
-                context.SetContent(PipelineContent.Create(content));
+                message.SetContent(PipelineContent.Create(content));
 
-                await Pipeline.ProcessAsync(context).ConfigureAwait(false);
+                await Pipeline.ProcessAsync(message).ConfigureAwait(false);
 
-                return await CreateResponse(context);
+                return await CreateResponse(message);
             }
         }
 
@@ -125,19 +132,19 @@ namespace Azure.Configuration
         {
             if (string.IsNullOrEmpty(key)) throw new ArgumentNullException(nameof(key));
 
-            Uri uri = BuildUrlForKvRoute(key, filter);
+            Uri uri = BuildUriForKvRoute(key, filter);
 
-            using (PipelineCallContext context = Pipeline.CreateContext(_options, cancellation))
+            using (HttpMessage message = Pipeline.CreateMessage(_options, cancellation))
             {
-                context.SetRequestLine(ServiceMethod.Delete, uri);
+                message.SetRequestLine(PipelineMethod.Delete, uri);
 
-                context.AddHeader("Host", uri.Host);
-                AddFilterHeaders(filter, context);
-                AddAuthenticationHeaders(context, uri, ServiceMethod.Delete, content: default, _secret, _credential);
+                message.AddHeader("Host", uri.Host);
+                AddFilterHeaders(filter, message);
+                AddAuthenticationHeaders(message, uri, PipelineMethod.Delete, content: default, _secret, _credential);
 
-                await Pipeline.ProcessAsync(context).ConfigureAwait(false);
+                await Pipeline.ProcessAsync(message).ConfigureAwait(false);
 
-                return await CreateResponse(context);
+                return await CreateResponse(message);
             }
         }
 
@@ -147,17 +154,17 @@ namespace Azure.Configuration
 
             Uri uri = BuildUriForLocksRoute(key, filter);
 
-            using (PipelineCallContext context = Pipeline.CreateContext(_options, cancellation))
+            using (HttpMessage message = Pipeline.CreateMessage(_options, cancellation))
             {
-                context.SetRequestLine(ServiceMethod.Put, uri);
+                message.SetRequestLine(PipelineMethod.Put, uri);
 
-                context.AddHeader("Host", uri.Host);
-                AddFilterHeaders(filter, context);
-                AddAuthenticationHeaders(context, uri, ServiceMethod.Put, content: default, _secret, _credential);
+                message.AddHeader("Host", uri.Host);
+                AddFilterHeaders(filter, message);
+                AddAuthenticationHeaders(message, uri, PipelineMethod.Put, content: default, _secret, _credential);
 
-                await Pipeline.ProcessAsync(context).ConfigureAwait(false);
+                await Pipeline.ProcessAsync(message).ConfigureAwait(false);
 
-                return await CreateResponse(context);
+                return await CreateResponse(message);
             }
         }
 
@@ -167,17 +174,17 @@ namespace Azure.Configuration
 
             Uri uri = BuildUriForLocksRoute(key, filter);
 
-            using (PipelineCallContext context = Pipeline.CreateContext(_options, cancellation))
+            using (HttpMessage message = Pipeline.CreateMessage(_options, cancellation))
             {
-                context.SetRequestLine(ServiceMethod.Delete, uri);
+                message.SetRequestLine(PipelineMethod.Delete, uri);
 
-                context.AddHeader("Host", uri.Host);
-                AddFilterHeaders(filter, context);
-                AddAuthenticationHeaders(context, uri, ServiceMethod.Delete, content: default, _secret, _credential);
+                message.AddHeader("Host", uri.Host);
+                AddFilterHeaders(filter, message);
+                AddAuthenticationHeaders(message, uri, PipelineMethod.Delete, content: default, _secret, _credential);
 
-                await Pipeline.ProcessAsync(context).ConfigureAwait(false);
+                await Pipeline.ProcessAsync(message).ConfigureAwait(false);
 
-                return await CreateResponse(context);
+                return await CreateResponse(message);
             }
         }
 
@@ -185,48 +192,79 @@ namespace Azure.Configuration
         {
             if (string.IsNullOrEmpty(key)) throw new ArgumentNullException($"{nameof(key)}");
 
-            Uri uri = BuildUrlForKvRoute(key, filter);
+            Uri uri = BuildUriForKvRoute(key, filter);
 
-            using (PipelineCallContext context = Pipeline.CreateContext(_options, cancellation))
+            using (HttpMessage message = Pipeline.CreateMessage(_options, cancellation))
             {
-                context.SetRequestLine(ServiceMethod.Get, uri);
+                message.SetRequestLine(PipelineMethod.Get, uri);
 
-                context.AddHeader("Host", uri.Host);
-                context.AddHeader(MediaTypeKeyValueApplicationHeader);
-                AddFilterHeaders(filter, context);
-                context.AddHeader(Header.Common.JsonContentType);
+                message.AddHeader("Host", uri.Host);
+                message.AddHeader(MediaTypeKeyValueApplicationHeader);
+                AddFilterHeaders(filter, message);
+                message.AddHeader(HttpHeader.Common.JsonContentType);
 
-                AddAuthenticationHeaders(context, uri, ServiceMethod.Get, content: default, _secret, _credential);
+                AddAuthenticationHeaders(message, uri, PipelineMethod.Get, content: default, _secret, _credential);
 
-                await Pipeline.ProcessAsync(context).ConfigureAwait(false);
+                await Pipeline.ProcessAsync(message).ConfigureAwait(false);
 
-                return await CreateResponse(context);
+                return await CreateResponse(message);
             }
         }
 
-        public async Task<Response<SettingBatch>> GetBatchAsync(BatchFilter filter, CancellationToken cancellation = default)
+        public async Task<Response<SettingBatch>> GetBatchAsync(SettingBatchFilter filter, CancellationToken cancellation = default)
         {
-            var uri = BuildUrlForGetBatch(filter);
+            var uri = BuildUriForGetBatch(filter);
 
-            using (PipelineCallContext context = Pipeline.CreateContext(_options, cancellation))
+            using (HttpMessage message = Pipeline.CreateMessage(_options, cancellation))
             {
-                context.SetRequestLine(ServiceMethod.Get, uri);
+                message.SetRequestLine(PipelineMethod.Get, uri);
 
-                context.AddHeader("Host", uri.Host);
-                context.AddHeader(MediaTypeKeyValueApplicationHeader);
+                message.AddHeader("Host", uri.Host);
+                message.AddHeader(MediaTypeKeyValueApplicationHeader);
                 if (filter.Revision != null)
                 {
-                    context.AddHeader(AcceptDatetimeHeader, filter.Revision.Value.UtcDateTime.ToString(AcceptDateTimeFormat));
+                    message.AddHeader(AcceptDatetimeHeader, filter.Revision.Value.UtcDateTime.ToString(AcceptDateTimeFormat));
                 }
 
-                await Pipeline.ProcessAsync(context).ConfigureAwait(false);
+                await Pipeline.ProcessAsync(message).ConfigureAwait(false);
 
-                ServiceResponse response = context.Response;
-                if (!response.TryGetHeader(Header.Constants.ContentLength, out long contentLength))
+                PipelineResponse response = message.Response;
+                if (!response.TryGetHeader(HttpHeader.Constants.ContentLength, out long contentLength))
                 {
                     throw new Exception("bad response: no content length header");
                 }
 
+                if (response.Status != 200)
+                {
+                    return new Response<SettingBatch>(response);
+                }
+
+                var batch = await ConfigurationServiceSerializer.ParseBatchAsync(response, cancellation);
+                return new Response<SettingBatch>(response, batch);
+            }
+        }
+
+        public async Task<Response<SettingBatch>> GetRevisionsAsync(SettingBatchFilter filter, CancellationToken cancellation = default)
+        {
+            var uri = BuildUriForRevisions(filter);
+
+            using (HttpMessage message = Pipeline.CreateMessage(_options, cancellation))
+            {
+                message.SetRequestLine(PipelineMethod.Get, uri);
+
+                message.AddHeader("Host", uri.Host);
+                message.AddHeader(MediaTypeKeyValueApplicationHeader);
+                if (filter.Revision != null)
+                {
+                    message.AddHeader(AcceptDatetimeHeader, filter.Revision.Value.UtcDateTime.ToString(AcceptDateTimeFormat));
+                }
+
+                AddAuthenticationHeaders(message, uri, PipelineMethod.Get, content: default, _secret, _credential);
+
+                await Pipeline.ProcessAsync(message).ConfigureAwait(false);
+
+                PipelineResponse response = message.Response;
+                
                 if (response.Status != 200)
                 {
                     return new Response<SettingBatch>(response);

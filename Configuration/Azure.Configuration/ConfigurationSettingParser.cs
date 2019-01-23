@@ -1,15 +1,20 @@
-﻿using Azure.Core.Net;
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for
+// license information.
+
+using Azure.Core.Http;
 using System;
 using System.Buffers;
 using System.Buffers.Text;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
-using System.Text.JsonLab;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Azure.Configuration
+namespace Azure.ApplicationModel.Configuration
 {
     // This should be simplified twice:
     // - once JsonReader supports for reading from stream
@@ -21,14 +26,21 @@ namespace Azure.Configuration
 
         public static bool TrySerialize(ConfigurationSetting setting, byte[] buffer, out int written)
         {
-            var json = new Utf8JsonWriter2(buffer);
-            json.WriteStartObject();
-            json.WriteString("value", setting.Value);
-            json.WriteString("content_type", setting.ContentType);
-            json.WriteEndObject();
-            json.Flush();
-            written = (int)json.BytesWritten;
-            return true;
+            try {
+                var writer = new FixedSizedBufferWriter(buffer);
+                var json = new Utf8JsonWriter(writer);
+                json.WriteStartObject();
+                json.WriteString("value", setting.Value);
+                json.WriteString("content_type", setting.ContentType);
+                json.WriteEndObject();
+                json.Flush();
+                written = (int)json.BytesWritten;
+                return true;
+            }
+            catch(ArgumentException) {
+                written = 0;
+                return false;
+            }
         }
 
         public enum JsonState : byte
@@ -41,14 +53,24 @@ namespace Azure.Configuration
             locked,
             value,
             etag,
-            lastmodified
+            last_modified,
+            tags
         }
 
-        static JsonState ToJsonState(this ReadOnlySpan<byte> propertyName)
+        static JsonState ToJsonState(this Utf8JsonReader reader)
         {
+            ReadOnlySpan<byte> value;
+            if(reader.HasValueSequence)
+            {
+                value = reader.ValueSequence.ToArray();
+            }
+            else
+            {
+                value = reader.ValueSpan;
+            }
             for (int i = 0; i < s_nameTable.Length; i++)
             {
-                if (propertyName.SequenceEqual(s_nameTable[i]))
+                if (value.SequenceEqual(s_nameTable[i]))
                 {
                     return s_valueTable[i];
                 }
@@ -93,7 +115,7 @@ namespace Azure.Configuration
             }
         }
 
-        public static async Task<SettingBatch> ParseBatchAsync(ServiceResponse response, CancellationToken cancellation)
+        public static async Task<SettingBatch> ParseBatchAsync(PipelineResponse response, CancellationToken cancellation)
         {
             TryGetNextAfterValue(ref response, out int next);
 
@@ -124,16 +146,14 @@ namespace Azure.Configuration
         {
             result = new ConfigurationSetting();
             consumed = 0;
-            var json = new Utf8Json();
-
-            var reader = json.GetReader(content, true);
+            var reader = new Utf8JsonReader(content, true, default);
             JsonState state = JsonState.Other;
             while (reader.Read())
             {
                 switch (reader.TokenType)
                 {
                     case JsonTokenType.PropertyName:
-                        state = reader.Value.ToJsonState();
+                        state = reader.ToJsonState();
                         break;
                     case JsonTokenType.Number:
                     case JsonTokenType.String:
@@ -144,7 +164,7 @@ namespace Azure.Configuration
                 }
             }
 
-            consumed = reader.Consumed;
+            consumed = reader.BytesConsumed;
             return true;
         }
 
@@ -154,8 +174,7 @@ namespace Azure.Configuration
 
             result = new List<ConfigurationSetting>();
             consumed = 0;
-            var json = new Utf8Json();
-            var reader = json.GetReader(content, true);
+            var reader = new Utf8JsonReader(content, true, default);
 
             JsonState state = JsonState.Other;
             ConfigurationSetting value = default;
@@ -164,16 +183,18 @@ namespace Azure.Configuration
                 switch (reader.TokenType)
                 {
                     case JsonTokenType.StartObject:
-                        value = new ConfigurationSetting();
+                        // TODO (pri 1): manage tag objects
+                        if(state != JsonState.tags) value = new ConfigurationSetting();
                         break;
                     case JsonTokenType.EndObject:
-                        result.Add(value);
+                        // TODO (pri 1): manage tag objects
+                        if (state != JsonState.tags) result.Add(value);
                         break;
                     case JsonTokenType.EndArray:
-                        consumed = reader.Consumed;
+                        consumed = reader.BytesConsumed;
                         return true;
                     case JsonTokenType.PropertyName:
-                        state = reader.Value.ToJsonState();
+                        state = reader.ToJsonState();
                         break;
                     case JsonTokenType.Number:
                     case JsonTokenType.String:
@@ -184,28 +205,26 @@ namespace Azure.Configuration
                 }
             }
 
-            consumed = reader.Consumed;
+            consumed = reader.BytesConsumed;
             return true;
         }
 
-        static void SetValue(ref Utf8Json.Reader json, JsonState state, ref ConfigurationSetting result)
+        static void SetValue(ref Utf8JsonReader json, JsonState state, ref ConfigurationSetting result)
         {
             switch (state)
             {
                 // strings
-                case JsonState.key: result.Key = json.GetValueAsString(); break;
-                case JsonState.label: result.Label = json.GetValueAsString(); break;
-                case JsonState.content_type: result.ContentType = json.GetValueAsString(); break;
-                case JsonState.value: result.Value = json.GetValueAsString(); break;
-                case JsonState.etag: result.ETag = json.GetValueAsString(); break;
-
+                case JsonState.key: result.Key = json.GetString(); break;
+                case JsonState.label: result.Label = json.GetString(); break;
+                case JsonState.content_type: result.ContentType = json.GetString(); break;
+                case JsonState.value: result.Value = json.GetString(); break;
+                case JsonState.etag: result.ETag = json.GetString(); break;
+                    
                 // other
-                case JsonState.lastmodified:
-                    // TODO (pri 1): implement date parsing
-                    //if(!Utf8Parser.TryParse(json.Value, out DateTimeOffset date, out int consumed, 'O')) {
-                    //    throw new Exception("bad date format " + json.GetValueAsString());
-                    //}
-                    //result.LastModified = date;
+                case JsonState.last_modified:
+                    var str = json.GetString();
+                    var dt = DateTimeOffset.Parse(str);
+                    result.LastModified = dt;
                     break;
 
                 case JsonState.locked:
@@ -219,7 +238,7 @@ namespace Azure.Configuration
 
         static readonly byte[] s_link = Encoding.ASCII.GetBytes("Link");
         static readonly byte[] s_after = Encoding.ASCII.GetBytes("?after=");
-        static bool TryGetNextAfterValue(ref ServiceResponse response, out int afterValue)
+        static bool TryGetNextAfterValue(ref PipelineResponse response, out int afterValue)
         {
             afterValue = default;
             ReadOnlySpan<byte> headerValue = default;
@@ -231,6 +250,33 @@ namespace Azure.Configuration
 
             ReadOnlySpan<byte> urlBytes = headerValue.Slice(afterIndex + s_after.Length);
             return Utf8Parser.TryParse(urlBytes, out afterValue, out _);
+        }
+    }
+
+    // TODO (pri 3): CoreFx will soon have a type like this. We should remove this one then.
+    internal class FixedSizedBufferWriter : IBufferWriter<byte>
+    {
+        private readonly byte[] _buffer;
+        private int _count;
+
+        public FixedSizedBufferWriter(byte[] buffer)
+        {
+            _buffer = buffer;
+        }
+
+        public Memory<byte> GetMemory(int minimumLength = 0) => _buffer.AsMemory(_count);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Span<byte> GetSpan(int minimumLength = 0) => _buffer.AsSpan(_count);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Advance(int bytes)
+        {
+            _count += bytes;
+            if (_count > _buffer.Length)
+            {
+                throw new InvalidOperationException("Cannot advance past the end of the buffer.");
+            }
         }
     }
 }

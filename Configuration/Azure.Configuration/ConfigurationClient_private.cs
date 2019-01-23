@@ -1,12 +1,17 @@
-﻿using Azure.Core;
-using Azure.Core.Net;
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for
+// license information.
+
+using Azure.Core;
+using Azure.Core.Http;
 using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Azure.Configuration
+namespace Azure.ApplicationModel.Configuration
 {
     public partial class ConfigurationClient
     {
@@ -20,47 +25,48 @@ namespace Azure.Configuration
         const string LabelQueryFilter = "label";
         const string FieldsQueryFilter = "fields";
         const string IfMatchName = "If-Match";
-        Header IfNoneMatchWildcard = new Header("If-None-Match", "*");
+        HttpHeader IfNoneMatchWildcard = new HttpHeader("If-None-Match", "*");
 
-        static readonly Header MediaTypeKeyValueApplicationHeader = new Header(
-            Header.Constants.Accept,
+        static readonly HttpHeader MediaTypeKeyValueApplicationHeader = new HttpHeader(
+            HttpHeader.Constants.Accept,
             Encoding.ASCII.GetBytes("application/vnd.microsoft.appconfig.kv+json")
         );
 
         // TODO (pri 3): do all the methods that call this accept revisions?
-        static void AddFilterHeaders(SettingFilter filter, PipelineCallContext context)
+        static void AddFilterHeaders(SettingFilter filter, HttpMessage message)
         {
             if (filter == null) return;
 
             if (filter.ETag.IfMatch != default) {
-                context.AddHeader(IfMatchName, $"\"{filter.ETag.IfMatch}\"");
+                message.AddHeader(IfMatchName, $"\"{filter.ETag.IfMatch}\"");
             }
 
             if (filter.Revision.HasValue) {
                 var dateTime = filter.Revision.Value.UtcDateTime.ToString(AcceptDateTimeFormat);
-                context.AddHeader(AcceptDatetimeHeader, dateTime);
+                message.AddHeader(AcceptDatetimeHeader, dateTime);
             }
         }
 
-        static async Task<Response<ConfigurationSetting>> CreateResponse(PipelineCallContext context)
+        static async Task<Response<ConfigurationSetting>> CreateResponse(HttpMessage message)
         {
-            ServiceResponse response = context.Response;
+            PipelineResponse response = message.Response;
 
             if (response.Status != 200) {
                 return new Response<ConfigurationSetting>(response);
             }
 
-            var result = await ConfigurationServiceSerializer.ParseSettingAsync(response.ContentStream, context.Cancellation);
+            var result = await ConfigurationServiceSerializer.ParseSettingAsync(response.ContentStream, message.Cancellation);
 
             return new Response<ConfigurationSetting>(response, result);
         }
 
         static void ParseConnectionString(string connectionString, out Uri uri, out string credential, out byte[] secret)
         {
-            uri = null;
-            credential = null;
-            secret = null;
-            if (string.IsNullOrEmpty(connectionString)) throw new ArgumentNullException(nameof(connectionString));
+            Debug.Assert(connectionString != null); // callers check this
+
+            uri = default;
+            credential = default;
+            secret = default;
 
             // Parse connection string
             string[] args = connectionString.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
@@ -73,6 +79,8 @@ namespace Azure.Configuration
             const string idString = "Id=";
             const string secretString = "Secret=";
 
+            // TODO (pri 2): this allows elements in the connection string to be in varied order. Should we disallow it?
+            // TODO (pri 2): this parser will succeed even if one of the elements is missing (e.g. if cs == "a;b;c". We should fix that.
             foreach (var arg in args)
             {
                 var segment = arg.Trim();
@@ -87,15 +95,16 @@ namespace Azure.Configuration
                 else if (segment.StartsWith(secretString, StringComparison.OrdinalIgnoreCase))
                 {
                     var secretBase64 = segment.Substring(segment.IndexOf('=') + 1);
+                    // TODO (pri 2): this might throw an obscure exception. Should we throw a consisten exception when the parser fails?
                     secret = Convert.FromBase64String(secretBase64);
                 }
             };
         }
 
-        Uri BuildUrlForKvRoute(ConfigurationSetting keyValue)
-            => BuildUrlForKvRoute(keyValue.Key, new SettingFilter() { Label = keyValue.Label }); // TODO (pri 2) : does this need to filter ETag?
+        Uri BuildUriForKvRoute(ConfigurationSetting keyValue)
+            => BuildUriForKvRoute(keyValue.Key, new SettingFilter() { Label = keyValue.Label }); // TODO (pri 2) : does this need to filter ETag?
 
-        Uri BuildUrlForKvRoute(string key, SettingFilter filter)
+        Uri BuildUriForKvRoute(string key, SettingFilter filter)
         {
             var builder = new UriBuilder(_baseUri);
             builder.Path = KvRoute + key;
@@ -119,31 +128,49 @@ namespace Azure.Configuration
             return builder.Uri;
         }
 
-        Uri BuildUrlForGetBatch(BatchFilter options)
+        void BuildBatchQuery(UriBuilder builder, SettingBatchFilter options)
         {
-            var builder = new UriBuilder(_baseUri);
-            builder.Path = KvRoute;
-
-            if (options.StartIndex != 0) {
+            if (options.StartIndex != 0)
+            {
                 builder.AppendQuery("after", options.StartIndex);
             }
 
-            if (!string.IsNullOrEmpty(options.Key)) {
+            if (!string.IsNullOrEmpty(options.Key))
+            {
                 builder.AppendQuery(KeyQueryFilter, options.Key);
             }
 
-            if (options.Label != null) {
-                if (options.Label == string.Empty) {
+            if (options.Label != null)
+            {
+                if (options.Label == string.Empty)
+                {
                     options.Label = "\0";
                 }
                 builder.AppendQuery(LabelQueryFilter, options.Label);
             }
 
-            if (options.Fields != SettingFields.All) {
+            if (options.Fields != SettingFields.All)
+            {
                 var filter = (options.Fields).ToString().ToLower();
                 builder.AppendQuery(FieldsQueryFilter, filter);
             }
+        }
 
+        Uri BuildUriForGetBatch(SettingBatchFilter options)
+        {
+            var builder = new UriBuilder(_baseUri);
+            builder.Path = KvRoute;
+
+            BuildBatchQuery(builder, options);
+            return builder.Uri;
+        }
+
+        Uri BuildUriForRevisions(SettingBatchFilter options)
+        {
+            var builder = new UriBuilder(_baseUri);
+            builder.Path = RevisionsRoute;
+
+            BuildBatchQuery(builder, options);
             return builder.Uri;
         }
 
@@ -165,7 +192,7 @@ namespace Azure.Configuration
             return content;
         }
 
-        internal static void AddAuthenticationHeaders(PipelineCallContext context, Uri uri, ServiceMethod method, ReadOnlyMemory<byte> content, byte[] secret, string credential)
+        internal static void AddAuthenticationHeaders(HttpMessage message, Uri uri, PipelineMethod method, ReadOnlyMemory<byte> content, byte[] secret, string credential)
         {
             string contentHash = null;
             using (var alg = SHA256.Create())
@@ -186,9 +213,10 @@ namespace Azure.Configuration
                 var signature = Convert.ToBase64String(hmac.ComputeHash(Encoding.ASCII.GetBytes(stringToSign))); // Calculate the signature
                 string signedHeaders = "date;host;x-ms-content-sha256"; // Semicolon separated header names
 
-                context.AddHeader("Date", utcNowString);
-                context.AddHeader("x-ms-content-sha256", contentHash);
-                context.AddHeader("Authorization", $"HMAC-SHA256 Credential={credential}, SignedHeaders={signedHeaders}, Signature={signature}");
+                // TODO (pri 3): should date header writing be moved out from here?
+                message.AddHeader("Date", utcNowString);
+                message.AddHeader("x-ms-content-sha256", contentHash);
+                message.AddHeader("Authorization", $"HMAC-SHA256 Credential={credential}, SignedHeaders={signedHeaders}, Signature={signature}");
             }
         }
 

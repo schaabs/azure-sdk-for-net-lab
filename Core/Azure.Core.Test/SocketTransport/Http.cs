@@ -1,11 +1,15 @@
-﻿using Azure.Core.Buffers;
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for
+// license information.
+
+using Azure.Core.Buffers;
 using System;
 using System.Buffers;
 using System.Buffers.Text;
 using System.Net.Http;
 using System.Text;
 
-namespace Azure.Core.Net
+namespace Azure.Core.Http
 {
     // TODO (pri 3): use real HTTP Parser (but it's in corfxlab)
     internal static class Http
@@ -50,18 +54,18 @@ namespace Azure.Core.Net
             return OperationStatus.Done;
         }
 
-        public static void WriteRequestLine(ref Sequence<byte> buffer, ServiceProtocol protocol, ServiceMethod method, ReadOnlySpan<byte> path)
+        internal static void WriteRequestLine(ref Sequence<byte> buffer, string protocol, PipelineMethod method, ReadOnlySpan<byte> path)
         {
-            if (protocol != ServiceProtocol.Https) throw new NotImplementedException();
+            if (protocol != "https") throw new NotImplementedException();
 
             var segment = buffer.GetMemory().Span;
             int written = 0;
-            if (method == ServiceMethod.Get)
+            if (method == PipelineMethod.Get)
             {
                 s_get.CopyTo(segment);
                 written = s_get.Length;
             }
-            else if (method == ServiceMethod.Post)
+            else if (method == PipelineMethod.Post)
             {
                 s_post.CopyTo(segment);
                 written = s_post.Length;

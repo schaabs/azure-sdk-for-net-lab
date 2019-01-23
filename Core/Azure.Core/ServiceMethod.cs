@@ -1,8 +1,12 @@
-﻿using System;
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for
+// license information.
 
-namespace Azure.Core.Net
+using System;
+
+namespace Azure.Core.Http
 {
-    public enum ServiceMethod : byte
+    public enum PipelineMethod : byte
     {
         Get,
         Post,

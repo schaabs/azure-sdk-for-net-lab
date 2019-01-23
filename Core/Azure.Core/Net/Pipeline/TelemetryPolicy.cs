@@ -1,21 +1,23 @@
-﻿using System;
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for
+// license information.
+
+using System;
 using System.Threading.Tasks;
 
-namespace Azure.Core.Net.Pipeline
+namespace Azure.Core.Http.Pipeline
 {
     public class TelemetryPolicy : PipelinePolicy
     {
-        Header _uaHeader;
+        HttpHeader _uaHeader;
 
-        public TelemetryPolicy(Header userAgentHeader)
-        {
-            _uaHeader = userAgentHeader;
-        }
+        public TelemetryPolicy(HttpHeader userAgentHeader)
+            => _uaHeader = userAgentHeader;
 
-        public override async Task ProcessAsync(PipelineCallContext context, ReadOnlyMemory<PipelinePolicy> pipeline)
+        public override async Task ProcessAsync(HttpMessage message, ReadOnlyMemory<PipelinePolicy> pipeline)
         {
-            context.AddHeader(_uaHeader);
-            await ProcessNextAsync(pipeline, context).ConfigureAwait(false);
+            message.AddHeader(_uaHeader);
+            await ProcessNextAsync(pipeline, message).ConfigureAwait(false);
         }
     }
 }

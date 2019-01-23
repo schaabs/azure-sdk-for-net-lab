@@ -1,16 +1,22 @@
-﻿using System;
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for
+// license information.
+
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 
-namespace Azure.Configuration
+namespace Azure.ApplicationModel.Configuration
 {
-    public sealed class ConfigurationSetting
+    public sealed class ConfigurationSetting : IEquatable<ConfigurationSetting>
     {
-        public ConfigurationSetting()
-        {
+        string _key;
+        IDictionary<string, string> _tags;
 
-        }
+        // TODO (pri 3): this is just for deserialization. We can remove after we move to JsonDocument
+        internal ConfigurationSetting() { }
 
         public ConfigurationSetting(string key, string value, string label = null)
         {
@@ -23,7 +29,13 @@ namespace Azure.Configuration
         /// The primary identifier of a key-value.
         /// The key is used in unison with the label to uniquely identify a key-value.
         /// </summary>
-        public string Key { get; set; }
+        public string Key {
+            get => _key;
+            set {
+                if (value == null) throw new ArgumentNullException(nameof(Key));
+                _key = value;
+            }
+        }
 
         /// <summary>
         /// A value used to group key-values.
@@ -61,33 +73,76 @@ namespace Azure.Configuration
         /// <summary>
         /// A dictionary of tags that can help identify what a key-value may be applicable for.
         /// </summary>
-        public IDictionary<string, string> Tags { get; set; }
+        public IDictionary<string, string> Tags {
+            get {
+                if (_tags == null) {
+                    lock (_key) {
+                        if (_tags == null) {
+                            _tags = new Dictionary<string, string>();
+                        }
+                    }
+                }
+                return _tags;
+            }
+        }
+
+        public bool Equals(ConfigurationSetting other)
+        {
+            if (other == null) return false;
+            if (!string.Equals(Value, other.Value, StringComparison.Ordinal)) return false;
+            if (!string.Equals(Label, other.Label, StringComparison.Ordinal)) return false;
+            if (!string.Equals(ContentType, other.ContentType, StringComparison.Ordinal)) return false;
+            if (!LastModified.Equals(other.LastModified)) return false;
+            // TODO (pri 1): any other fields we should compare?
+            return true;
+        }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public override bool Equals(object obj) => base.Equals(obj);
+        public override bool Equals(object obj)
+        {
+            if (obj == null) return false;
+            if (obj is ConfigurationSetting other) {
+                return Equals(other);
+            }
+            else return false;
+        }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public override int GetHashCode() => base.GetHashCode();
+        public override int GetHashCode()
+        {
+            int hash = 17;
+            if (Key!=null) hash = hash * 23 + Key.GetHashCode();
+            if (Value != null) hash = hash * 23 + Value.GetHashCode();
+            if (Label != null) hash = hash * 23 + Label.GetHashCode();
+            if (ETag != null) hash = hash * 23 + ETag.GetHashCode();
+            hash = hash * 23 + LastModified.GetHashCode();
+            return hash;
+        }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public override string ToString() => base.ToString();
+        public override string ToString()
+            => $"({Key},{Value})";
     }
 
-    public sealed class SettingBatch : IEnumerable<ConfigurationSetting>
+    [DebuggerTypeProxy(typeof(SettingBatchDebugView))]
+    public class SettingBatch : IEnumerable<ConfigurationSetting>
     {
-        IReadOnlyList<ConfigurationSetting> _settings;
+        readonly IReadOnlyList<ConfigurationSetting> _settings;
+        readonly int _nextIndex;
 
         public SettingBatch(IReadOnlyList<ConfigurationSetting> settings, int next)
         {
             _settings = settings;
-            NextIndex = next;
+            _nextIndex = next;
         }
 
-        public int NextIndex { get;  private set; }
+        public int NextIndex => _nextIndex;
 
-        // TODO (pri 2): add struct enumerator 
         public IEnumerator<ConfigurationSetting> GetEnumerator() => _settings.GetEnumerator();
         IEnumerator IEnumerable.GetEnumerator() => _settings.GetEnumerator();
+
+        public ConfigurationSetting this[int index] => _settings[index];
+        public int Count => _settings.Count;
 
         #region nobody wants to see these
         [EditorBrowsable(EditorBrowsableState.Never)]
@@ -99,5 +154,23 @@ namespace Azure.Configuration
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override string ToString() => base.ToString();
         #endregion
+    }
+
+    class SettingBatchDebugView
+    {
+        SettingBatch _batch;
+        ConfigurationSetting[] _items;
+
+        public SettingBatchDebugView(SettingBatch batch)
+        {
+            _batch = batch;
+            _items = new ConfigurationSetting[_batch.Count];
+            for(int i=0; i<_batch.Count; i++) {
+                _items[i] = _batch[i];
+            }
+        }
+
+        [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
+        public ConfigurationSetting[] Items => _items;        
     }
 }

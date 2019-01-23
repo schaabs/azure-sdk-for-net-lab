@@ -1,5 +1,9 @@
-﻿using Azure.Core.Buffers;
-using Azure.Core.Net.Pipeline;
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for
+// license information.
+
+using Azure.Core.Buffers;
+using Azure.Core.Http.Pipeline;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -12,21 +16,21 @@ using System.Threading;
 using System.Threading.Tasks;
 using static System.Buffers.Text.Encodings;
 
-namespace Azure.Core.Net
+namespace Azure.Core.Http
 {
     public class SocketClientTransport : PipelineTransport
     {
-        public override PipelineCallContext CreateContext(PipelineOptions options, CancellationToken cancellation)
-            => new SocketClientContext(ref options, cancellation);
+        public override HttpMessage CreateMessage(PipelineOptions options, CancellationToken cancellation)
+            => new SocketClientMessage(ref options, cancellation);
 
-        public override async Task ProcessAsync(PipelineCallContext context)
+        public override async Task ProcessAsync(HttpMessage message)
         {
-            var socketTransportContext = context as SocketClientContext;
-            if (socketTransportContext == null) throw new InvalidOperationException("the context is not compatible with the transport");
-            await socketTransportContext.ProcessAsync().ConfigureAwait(false);
+            var socketTransportMessage = message as SocketClientMessage;
+            if (socketTransportMessage == null) throw new InvalidOperationException("the message is not compatible with the transport");
+            await socketTransportMessage.ProcessAsync().ConfigureAwait(false);
         }
 
-        protected class SocketClientContext : PipelineCallContext
+        protected class SocketClientMessage : HttpMessage
         {
             // TODO (pri 3): refactor connection cache and GC it.
             static readonly Dictionary<string, (Socket Client, SslStream Stream)> s_cache = new Dictionary<string, (Socket client, SslStream stream)>();
@@ -44,19 +48,19 @@ namespace Azure.Core.Net
             int _contentStart;
             bool _endOfHeadersWritten = false;
 
-            public SocketClientContext(ref PipelineOptions options, CancellationToken cancellation)
+            public SocketClientMessage(ref PipelineOptions options, CancellationToken cancellation)
                 : base(cancellation)
             {
                 _responseBuffer = new Sequence<byte>(options.Pool);
                 _requestBuffer = new Sequence<byte>(options.Pool);
             }
 
-            public override void SetRequestLine(ServiceMethod method, Uri uri)
+            public override void SetRequestLine(PipelineMethod method, Uri uri)
             {
                 _host = uri.Host;
                 var path = uri.PathAndQuery;
 
-                Http.WriteRequestLine(ref _requestBuffer, ServiceProtocol.Https, method, Encoding.ASCII.GetBytes(path));
+                Http.WriteRequestLine(ref _requestBuffer, "https", method, Encoding.ASCII.GetBytes(path));
                 AddHeader("Host", _host);
             }
 
@@ -67,7 +71,7 @@ namespace Azure.Core.Net
             {
                 if (_requestContent.TryComputeLength(out long len))
                 {
-                    AddHeader(Header.Common.CreateContentLength(len));
+                    AddHeader(HttpHeader.Common.CreateContentLength(len));
                 }
 
                 // this is needed so the retry does not add this again
@@ -112,7 +116,7 @@ namespace Azure.Core.Net
                 await _sslStream.FlushAsync().ConfigureAwait(false);
             }
 
-            public sealed override void AddHeader(Header header)
+            public sealed override void AddHeader(HttpHeader header)
             {
                 if (_endOfHeadersWritten) throw new NotImplementedException("need to shift EOH");
 
@@ -184,15 +188,15 @@ namespace Azure.Core.Net
 
         public MockSocketTransport(params byte[][] responses) => _responses = responses;
 
-        public override PipelineCallContext CreateContext(PipelineOptions client, CancellationToken cancellation)
-            => new MockSocketContext(ref client, cancellation, _responses);
+        public override HttpMessage CreateMessage(PipelineOptions client, CancellationToken cancellation)
+            => new MockSocketMessage(ref client, cancellation, _responses);
 
-        class MockSocketContext : SocketClientContext
+        class MockSocketMessage : SocketClientMessage
         {
             byte[][] _responses;
             int _responseNumber;
 
-            public MockSocketContext(ref PipelineOptions options, CancellationToken cancellation, byte[][] responses)
+            public MockSocketMessage(ref PipelineOptions options, CancellationToken cancellation, byte[][] responses)
                 : base(ref options, cancellation)
             {
                 _responses = responses;
