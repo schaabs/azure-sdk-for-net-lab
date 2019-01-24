@@ -6,6 +6,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Core\Azure.Core\Azure.Core.csproj" />
+    <PackageReference Include="System.Memory" Version="4.5.1" />
+    <PackageReference Include="Microsoft.Bcl.Json.Sources" Version="4.6.0-preview.19073.1">
+      <PrivateAssets>All</PrivateAssets>
+    </PackageReference>
   </ItemGroup>
 
 </Project>
