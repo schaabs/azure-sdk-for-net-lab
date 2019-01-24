@@ -14,7 +14,10 @@ namespace Azure.Core
 
         public ETag(string etag) => _ascii = Encoding.ASCII.GetBytes(etag);
 
-        public bool Equals(ETag other) => true;
+        public bool Equals(ETag other)
+        {
+            return this._ascii == other._ascii;
+        }
 
         public override int GetHashCode() => 0;
 
