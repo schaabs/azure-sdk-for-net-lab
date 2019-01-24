@@ -6,7 +6,8 @@ using System.Text.Json;
 
 namespace Azure.Security.KeyVault
 {
-    public sealed class Secret
+
+    public sealed class Secret : Model
     {        
         public string Id { get; set; }
 
@@ -14,7 +15,7 @@ namespace Azure.Security.KeyVault
 
         public string ContentType { get; set; }
 
-        public SecretAttributes Attributes { get; set; }
+        public VaultObjectAttributes Attributes { get; set; }
 
         public IDictionary<string, string> Tags { get; set; }
 
@@ -22,151 +23,110 @@ namespace Azure.Security.KeyVault
 
         public bool? Managed { get; private set; }
 
-        public void Serialize(Utf8JsonWriter2 writer, ReadOnlySpan<byte> propertyName = null)
+        protected override void ReadProperties(JsonElement json)
         {
-
-            if (Id != null)
+            Id = json.GetProperty("id").GetString();
+            
+            if(json.TryGetProperty("value", out JsonElement value))
             {
-                writer.WriteString("id", Id);
+                Value = value.GetString();
+            }
+            
+            if(json.TryGetProperty("contentType", out JsonElement contentType))
+            {
+                ContentType = contentType.GetString();
             }
 
-            if (Value != null)
+            if(json.TryGetProperty("kid", out JsonElement kid))
             {
-                writer.WriteString("value", Value);
+                Kid = kid.GetString();
             }
 
-            if (ContentType != null)
+            if(json.TryGetProperty("attributes", out JsonElement attributes))
             {
-                writer.WriteString("contentType", ContentType);
+                Attributes = new VaultObjectAttributes();
+
+                Attributes.ReadProperties(attributes);
             }
 
-            if (Tags != null)
+            if(json.TryGetProperty("tags", out JsonElement tags))
             {
-                writer.WriteStartObject("tags");
-                
-                foreach(var tag in Tags)
+                Tags = new Dictionary<string, string>();
+
+                foreach(var prop in tags.EnumerateObject())
                 {
-                    writer.writeString(tag.Key, tag.Value);
+                    tags[prop.Name] = prop.Value.GetString();
                 }
             }
-        }
 
-        public void Deserialize(Utf8Json.Reader reader)
-        {
-            if (!reader.Read() || reader.JsonTokenType != JsonTokenType.StartObject)
+            if(json.TryGetProperty("managed", out JsonElement managed))
             {
-                throw new SerializationException();
+                Managed = managed.GetBoolean();
             }
 
-            while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
-            {
-                if (reader.JsonTokenType != JsonTokenType.PropertyName)
-                {
-                    throw new SerializationException();
-                }
-
-
-            }
         }
+
     }
 
-    public abstract class SecretAttributes
-    {
+    public class VaultObjectAttributes : Model
+    { [JsonProperty(PropertyName = "enabled")]
+        public bool? Enabled { get; set; }
+
+        /// <summary>
+        /// Gets or sets not before date in UTC.
+        /// </summary>
+        [JsonConverter(typeof(UnixTimeJsonConverter))]
+        [JsonProperty(PropertyName = "nbf")]
+        public System.DateTime? NotBefore { get; set; }
+
+        /// <summary>
+        /// Gets or sets expiry date in UTC.
+        /// </summary>
+        [JsonConverter(typeof(UnixTimeJsonConverter))]
+        [JsonProperty(PropertyName = "exp")]
+        public System.DateTime? Expires { get; set; }
+
+        /// <summary>
+        /// Gets creation time in UTC.
+        /// </summary>
+        [JsonConverter(typeof(UnixTimeJsonConverter))]
+        [JsonProperty(PropertyName = "created")]
+        public System.DateTime? Created { get; private set; }
+
+        /// <summary>
+        /// Gets last updated time in UTC.
+        /// </summary>
+        [JsonConverter(typeof(UnixTimeJsonConverter))]
+        [JsonProperty(PropertyName = "updated")]
+        public System.DateTime? Updated { get; private set; }
+
         public bool? Enabled { get; set; }
         public DateTime? Created { get; set; }
                 
-        public int Serialize(Utf8JsonWriter2 writer, string propertyName = null)
+        protected override void ReadProperties(JsonElement json)
         {
-            if(string.IsNullOrEmpty(suppressObject))
+            if(json.TryGetProperty("enabled", out JsonElement enabled))
             {
-                writer.WriteStartObject();
+                Enabled = enabled.GetBoolean();
             }
-            else
+
+            if(json.TryGetProperty("nbf", out JsonElement notBefore)
             {
-                writer.WriteStartObject(propertyName);
+                
             }
-            
-            writer.WriteString("id", Id);
-            writer.WriteString("value", Value);
-            writer.WriteString("contentType", ContentType);
-            writer.WriteStartObject("attributes");
-            writer.WriteEndObject();
 
         }
     }
 
     internal abstract class Model
     {
-        private static JsonAttribute[] s_jsonProperties;
-        private static Object s_initLock = new Object();
-        private static bool s_init = false;
-
-        public Model()
-        {
-            InitializeJsonProperties();
-        }
-
-        private void InitializeJsonProperties()
-        {
-            if (!s_init)
-            {
-                lock(s_initLock)
-                {
-                    if(!s_init)
-                    {
-                        // get the JsonAttribute for all public properties on the current type
-                        // filter out properties without the attribute or attributes with Ignored set
-                        // sort the attributes by Utf8Name so the properties can be looked up with binary search
-                        // when deserializing
-                        s_jsonProperties = this.GetType().GetProperties()
-                                                         .Select( prop => prop.GetCustomAttributes<JsonAttribute>().FirstOrDefault())
-                                                         .Where(attr => attr != null && !attr.Ignored)
-                                                         .OrderBy(attr => attr.Utf8Name, ByteSpanComparer.Singleton);
-                        s_init = true;
-                    }
-                }
-            }
-        }
-
         public void Deserialize(Utf8JsonReader reader)
         {
-            // ensure that the begining of the json text is startObject
-            if (!reader.Read() || reader.JsonTokenType != JsonTokenType.StartObject)
-            {
-                throw new SerializationException();
-            }
-
-            // read until the end of the object
-            while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
-            {
-                // the first token in each loop iteration should be a property
-                if (reader.JsonTokenType != JsonTokenType.PropertyName)
-                {
-                    throw new SerializationException();
-                }
-
-
-            }
         }
 
         public void Serialize(Utf8JsonWriter2 writer, ReadOnlySpan<byte> propertyName = null)
         {
 
-            if(string.IsNullOrEmpty(propertyName))
-            {
-                writer.WriteStartObject();
-            }
-            else
-            {
-                writer.WriteStartObject(propertyName);
-            }
-            
-            for (int i = 0; i < s_jsonProperties.Length; i++)
-            {
-                WriteProperty(writer, s_jsonProperties[i]);
-            }
-
-            writer.WriteEndObject();
         }
 
         // Making this an abstract method for now so that individual classes can explicitly write properties
@@ -174,10 +134,7 @@ namespace Azure.Security.KeyVault
         // this could be implemented here.
         protected abstract void WriteProperty(Utf8JsonWriter writer, JsonAttribute attr);
 
-        // Making this an abstract method for now so that individual classes can explicitly read properties
-        // without the need for reflection.  If we determin that the performance hit of reflection is acceptable
-        // this could be implemented here.
-        protected abstract void ReadProperty(Utf8JsonReader reader, JsonAttribute attr);
+        protected abstract void ReadProperties(JsonElement json);
     }
 
     [System.AttributeUsage(System.AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
