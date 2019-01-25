@@ -69,7 +69,7 @@ namespace Azure.Face
 
                 await _client.ProcessAsync(message).ConfigureAwait(false);
 
-                PipelineResponse response = message.Response;
+                Response response = message.Response;
                 if (!response.TryGetHeader(s_contentLength, out long contentLength)) {
                     throw new Exception("bad response: no content length header");
                 }
@@ -77,7 +77,7 @@ namespace Azure.Face
                 var buffer = new byte[contentLength];
                 var read = await response.ContentStream.ReadAsync(buffer, cancellation);
 
-                Func<PipelineResponse, FaceDetectResult> contentParser = null;
+                Func<Response, FaceDetectResult> contentParser = null;
                 if (response.Status == 200) {
                     contentParser = (rsp) => { return FaceDetectResult.Parse(new ReadOnlySequence<byte>(buffer, 0, read)); };
                 }
@@ -111,7 +111,7 @@ namespace Azure.Face
 
                 await _client.ProcessAsync(message).ConfigureAwait(false);
 
-                PipelineResponse response = message.Response;
+                Response response = message.Response;
                 if (!response.TryGetHeader(s_contentLength, out long contentLength)) {
                     throw new Exception("bad response: no content length header");
                 }
@@ -119,7 +119,7 @@ namespace Azure.Face
                 var buffer = new byte[contentLength];
                 var read = await response.ContentStream.ReadAsync(buffer, cancellation);
 
-                Func<PipelineResponse, FaceDetectResult> contentParser = null;
+                Func<Response, FaceDetectResult> contentParser = null;
                 if (response.Status == 200)
                 {
                     contentParser = (rsp) => { return FaceDetectResult.Parse(new ReadOnlySequence<byte>(buffer, 0, read)); };
