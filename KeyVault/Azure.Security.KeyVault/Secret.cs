@@ -9,7 +9,7 @@ namespace Azure.Security.KeyVault
 
     public sealed class Secret : Model
     {        
-        public string Id { get; set; }
+        public string Id { get; private set; }
 
         public string Value { get; set; }
 
@@ -23,7 +23,7 @@ namespace Azure.Security.KeyVault
 
         public bool? Managed { get; private set; }
 
-        protected override void ReadProperties(JsonElement json)
+        internal override void ReadProperties(JsonElement json)
         {
             Id = json.GetProperty("id").GetString();
             
@@ -35,11 +35,6 @@ namespace Azure.Security.KeyVault
             if(json.TryGetProperty("contentType", out JsonElement contentType))
             {
                 ContentType = contentType.GetString();
-            }
-
-            if(json.TryGetProperty("kid", out JsonElement kid))
-            {
-                Kid = kid.GetString();
             }
 
             if(json.TryGetProperty("attributes", out JsonElement attributes))
@@ -59,82 +54,176 @@ namespace Azure.Security.KeyVault
                 }
             }
 
+            if(json.TryGetProperty("kid", out JsonElement kid))
+            {
+                Kid = kid.GetString();
+            }
+
             if(json.TryGetProperty("managed", out JsonElement managed))
             {
                 Managed = managed.GetBoolean();
             }
+        }
 
+        internal override void WriteProperties(Utf8JsonWriter json)
+        {
+            // Id is read-only don't serialize
+
+            if (Value != null)
+            {
+                json.WriteString("value", Value);
+            }
+
+            if (ContentType != null)
+            {
+                json.WriteString("contentType", ContentType);
+            }
+
+            if (Attributes != null)
+            {
+                json.WriteStartObject("attributes");
+
+                Attributes.WriteProperties(json);
+
+                json.WriteEndObject();
+            }
+
+            if (Tags != null)
+            {
+                json.WriteStartObject("tags");
+
+                foreach(var kvp in Tags)
+                {
+                    json.WriteString(kvp.Key, kvp.Value);
+                }
+
+                json.WriteEndObject();
+            }
+
+            // Kid is read-only don't serialize
+
+            // Managed is read-only don't serialize
         }
 
     }
 
-    public class VaultObjectAttributes : Model
-    { [JsonProperty(PropertyName = "enabled")]
+    public sealed class VaultObjectAttributes : Model
+    {
         public bool? Enabled { get; set; }
 
         /// <summary>
         /// Gets or sets not before date in UTC.
         /// </summary>
-        [JsonConverter(typeof(UnixTimeJsonConverter))]
-        [JsonProperty(PropertyName = "nbf")]
         public System.DateTime? NotBefore { get; set; }
 
         /// <summary>
         /// Gets or sets expiry date in UTC.
         /// </summary>
-        [JsonConverter(typeof(UnixTimeJsonConverter))]
-        [JsonProperty(PropertyName = "exp")]
         public System.DateTime? Expires { get; set; }
 
         /// <summary>
         /// Gets creation time in UTC.
         /// </summary>
-        [JsonConverter(typeof(UnixTimeJsonConverter))]
-        [JsonProperty(PropertyName = "created")]
         public System.DateTime? Created { get; private set; }
 
         /// <summary>
         /// Gets last updated time in UTC.
         /// </summary>
-        [JsonConverter(typeof(UnixTimeJsonConverter))]
-        [JsonProperty(PropertyName = "updated")]
         public System.DateTime? Updated { get; private set; }
 
-        public bool? Enabled { get; set; }
-        public DateTime? Created { get; set; }
-                
-        protected override void ReadProperties(JsonElement json)
+        /// <summary>
+        /// Gets reflects the deletion recovery level currently in effect for
+        /// secrets in the current vault. If it contains 'Purgeable', the
+        /// secret can be permanently deleted by a privileged user; otherwise,
+        /// only the system can purge the secret, at the end of the retention
+        /// interval. Possible values include: 'Purgeable',
+        /// 'Recoverable+Purgeable', 'Recoverable',
+        /// 'Recoverable+ProtectedSubscription'
+        /// </summary>
+        public string RecoveryLevel { get; private set; }
+
+        internal override void ReadProperties(JsonElement json)
         {
             if(json.TryGetProperty("enabled", out JsonElement enabled))
             {
                 Enabled = enabled.GetBoolean();
             }
 
-            if(json.TryGetProperty("nbf", out JsonElement notBefore)
+            if(json.TryGetProperty("nbf", out JsonElement nbf))
             {
-                
+                NotBefore = DateTimeOffset.FromUnixTimeMilliseconds(nbf.GetInt64()).DateTime;
             }
 
+            if(json.TryGetProperty("exp", out JsonElement exp))
+            {
+                Expires = DateTimeOffset.FromUnixTimeMilliseconds(exp.GetInt64()).DateTime;
+            }
+
+            if(json.TryGetProperty("created", out JsonElement created))
+            {
+                Created = DateTimeOffset.FromUnixTimeMilliseconds(created.GetInt64()).DateTime;
+            }
+
+            if(json.TryGetProperty("updated", out JsonElement updated))
+            {
+                Updated = DateTimeOffset.FromUnixTimeMilliseconds(updated.GetInt64()).DateTime;
+            }
+
+            if(json.TryGetProperty("recoveryLevel", out JsonElement recoveryLevel))
+            {
+                RecoveryLevel = recoveryLevel.GetString();
+            }
+        }
+
+        internal override WriteProperties(Utf8JsonWriter json)
+        {
+            if (Enabled.HasValue)
+            {
+                json.WriteBoolean("enabled", Enabled.Value);
+            }
+
+            if (NotBefore.HasValue)
+            {
+                json.WriteNumber("nbf", new DateTimeOffset(NotBefore.Value).ToUnixTimeMilliseconds());
+            }
+            
+            if (Expires.HasValue)
+            {
+                json.WriteNumber("exp", new DateTimeOffset(Expires.Value).ToUnixTimeMilliseconds());
+            }
+
+            // Created is read-only don't serialize
+            // Updated is read-only don't serialize
+            // RecoveryLevel is read-only don't serialize
         }
     }
 
-    internal abstract class Model
+    public abstract class Model
     {
         public void Deserialize(Utf8JsonReader reader)
         {
         }
 
-        public void Serialize(Utf8JsonWriter2 writer, ReadOnlySpan<byte> propertyName = null)
+        public ReadOnlyMemory<byte> Serialize()
         {
+            byte[] buffer = new byte[1024];
 
+            var writer = new FixedSizedBufferWriter(buffer);
+            
+            var json = new Utf8JsonWriter(writer);
+            
+            json.WriteStartObject();
+
+            WriteProperties(json);
+
+            json.WriteEndObject();
+
+            return buffer.AsMemory(0, json.BytesWritten);
         }
 
-        // Making this an abstract method for now so that individual classes can explicitly write properties
-        // without the need for reflection.  If we determin that the performance hit of reflection is acceptable
-        // this could be implemented here.
-        protected abstract void WriteProperty(Utf8JsonWriter writer, JsonAttribute attr);
+        internal abstract void WriteProperties(Utf8JsonWriter json);
 
-        protected abstract void ReadProperties(JsonElement json);
+        internal abstract void ReadProperties(JsonElement json);
     }
 
     [System.AttributeUsage(System.AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
