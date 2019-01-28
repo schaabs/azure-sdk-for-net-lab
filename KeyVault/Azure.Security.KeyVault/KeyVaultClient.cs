@@ -3,6 +3,8 @@ using Azure.Core;
 using Azure.Core.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using Azure.Core.Http;
+using System.Collections.Generic;
 
 namespace Azure.Security.KeyVault
 {
@@ -41,12 +43,12 @@ namespace Azure.Security.KeyVault
             if(string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
             if(string.IsNullOrEmpty(value)) throw new ArgumentNullException(nameof(value));
 
-            Uri secretUri = new Uri(_vaultUri, secretsRoute + name);
+            Uri secretUri = new Uri(_vaultUri, secretRoute + name);
             
-            using (HttpMessage message = Pipeline.CreateMessage(_options, cancellation))
+            using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
             {
                 message.SetRequestLine(PipelineMethod.Put, secretUri);
-                message.AddHeader("Host", uri.Host);
+                message.AddHeader("Host", secretUri.Host);
                 message.AddHeader("Accept", "application/json");
                 message.AddHeader("Content-Type", "application/json; charset=utf-8");
                 message.AddHeader("Authorization", "Bearer " + _credentials.GetToken());
@@ -59,10 +61,21 @@ namespace Azure.Security.KeyVault
                     Tags = tags
                 };
 
-                message.SetContent(secret.Serialize());
+                message.SetContent(PipelineContent.Create(secret.Serialize()));
 
                 // todo: shouldn't this take in the cancellation token
                 await _pipeline.ProcessAsync(message);
+
+                PipelineResponse response = message.Response;
+
+                if (response.Status != 200)
+                {
+                    return new Response<Secret>(response);
+                }
+
+                secret.Deserialize(response.ContentStream);
+
+                return new Response<Secret>(response, secret);
             }
 
 
