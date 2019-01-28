@@ -66,13 +66,13 @@ namespace Azure.Security.KeyVault
         private const int KidPropId = 6;
         private const int ManagedPropId = 7;
 
-        [Json("id", IdPropId)]
+        [Json("id", IdPropId, readOnly: true)]
         public string Id { get; set; }
 
         [Json("value", ValuePropId)]
         public string Value { get; set; }
         
-        [Json("contenType", ContentTypePropId)]
+        [Json("contentType", ContentTypePropId)]
         public string ContentType { get; set; }
 
         [Json("attributes", AttributesPropId)]
@@ -81,10 +81,10 @@ namespace Azure.Security.KeyVault
         [Json("tags", TagsPropId)]
         public IDictionary<string, string> Tags { get; set; }
 
-        [Json("kid", KidPropId)]
+        [Json("kid", KidPropId, readOnly:true)]
         public string Kid { get; private set; }
 
-        [Json("managed", ManagedPropId)]
+        [Json("managed", ManagedPropId, readOnly:true)]
         public bool? Managed { get; private set; }
 
         internal override void ReadProperty(Utf8JsonReader reader, JsonAttribute attr)
@@ -127,12 +127,6 @@ namespace Azure.Security.KeyVault
         {
             switch (attr.Id)
             {
-                case IdPropId:
-                    if (Id != null)
-                    {
-                        writer.WriteString(attr.Utf8Name, Id);
-                    }
-                    break;
                 case ValuePropId:
                     if (Value != null)
                     {
@@ -157,18 +151,6 @@ namespace Azure.Security.KeyVault
                         writer.WriteStringDictionary(attr.Utf8Name, Tags);
                     }
                     break;
-                case KidPropId:
-                    if (Kid != null)
-                    {
-                        writer.WriteString(attr.Utf8Name, Kid);
-                    }
-                    break;
-                case ManagedPropId:
-                    if (Managed != null)
-                    {
-                        writer.WriteBoolean(attr.Utf8Name, Managed.Value);
-                    }
-                    break;
                 default:
                     throw new SerializationException();
             }
@@ -184,26 +166,31 @@ namespace Azure.Security.KeyVault
         private const int UpdatedPropId = 5;
         private const int RecoveryLevelPropId = 6;
 
+        [Json("enabled", EnabledPropId)]
         public bool? Enabled { get; set; }
 
         /// <summary>
         /// Gets or sets not before date in UTC.
         /// </summary>
+        [Json("nbf", NotBeforePropId)]
         public System.DateTime? NotBefore { get; set; }
 
         /// <summary>
         /// Gets or sets expiry date in UTC.
         /// </summary>
+        [Json("exp", ExpiresPropId)]
         public System.DateTime? Expires { get; set; }
 
         /// <summary>
         /// Gets creation time in UTC.
         /// </summary>
+        [Json("created", CreatedPropId, readOnly:true)]
         public System.DateTime? Created { get; private set; }
 
         /// <summary>
         /// Gets last updated time in UTC.
         /// </summary>
+        [Json("updated", UpdatedPropId, readOnly:true)]
         public System.DateTime? Updated { get; private set; }
 
         /// <summary>
@@ -215,6 +202,7 @@ namespace Azure.Security.KeyVault
         /// 'Recoverable+Purgeable', 'Recoverable',
         /// 'Recoverable+ProtectedSubscription'
         /// </summary>
+        [Json("recoveryLevel", RecoveryLevelPropId, readOnly:true)]
         public string RecoveryLevel { get; private set; }
 
         internal override void ReadProperty(Utf8JsonReader reader, JsonAttribute attr)
@@ -272,24 +260,6 @@ namespace Azure.Security.KeyVault
                         writer.WriteUnixMillisecondTimestamp(attr.Utf8Name, Expires.Value);
                     }
                     break;
-                case CreatedPropId:
-                    if (Created != null)
-                    {
-                        writer.WriteUnixMillisecondTimestamp(attr.Utf8Name, Created.Value);
-                    }
-                    break;
-                case UpdatedPropId:
-                    if (Updated != null)
-                    {
-                        writer.WriteUnixMillisecondTimestamp(attr.Utf8Name, Updated.Value);
-                    }
-                    break;
-                case RecoveryLevelPropId:
-                    if (RecoveryLevel != null)
-                    {
-                        writer.WriteString(attr.Utf8Name, RecoveryLevel);
-                    }
-                    break;
                 default:
                     throw new SerializationException();
             }
@@ -340,7 +310,10 @@ namespace Azure.Security.KeyVault
 
             for (int i = 0; i < s_jsonProperties.Length; i++)
             {
-                WriteProperty(writer, s_jsonProperties[i]);
+                if (!s_jsonProperties[i].ReadOnly)
+                {
+                    WriteProperty(writer, s_jsonProperties[i]);
+                }
             }
 
             writer.WriteEndObject();
@@ -400,12 +373,14 @@ namespace Azure.Security.KeyVault
         readonly string _name;
         readonly byte[] _utf8Name;
         readonly int _id;
+        readonly bool _readonly;
         
         // This is a positional argument
-        public JsonAttribute(string name, int id = 0)
+        public JsonAttribute(string name, int id = 0, bool readOnly = false)
         {
             _name = name;
             _id = id;
+            _readonly = readOnly;
             _utf8Name = Encoding.UTF8.GetBytes(name);
 
         }
@@ -426,6 +401,8 @@ namespace Azure.Security.KeyVault
         }
         
         public string PropertyName { get; set; }
+
+        public bool ReadOnly { get { return _readonly; } }
         
     }
 }
