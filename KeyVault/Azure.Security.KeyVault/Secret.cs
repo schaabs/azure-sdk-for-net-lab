@@ -1,7 +1,10 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 
 namespace Azure.Security.KeyVault
@@ -50,7 +53,7 @@ namespace Azure.Security.KeyVault
 
                 foreach(var prop in tags.EnumerateObject())
                 {
-                    tags[prop.Name] = prop.Value.GetString();
+                    Tags[prop.Name] = prop.Value.GetString();
                 }
             }
 
@@ -175,7 +178,7 @@ namespace Azure.Security.KeyVault
             }
         }
 
-        internal override WriteProperties(Utf8JsonWriter json)
+        internal override void WriteProperties(Utf8JsonWriter json)
         {
             if (Enabled.HasValue)
             {
@@ -200,8 +203,12 @@ namespace Azure.Security.KeyVault
 
     public abstract class Model
     {
-        public void Deserialize(Utf8JsonReader reader)
+        public void Deserialize(Stream content)
         {
+            using (JsonDocument json = JsonDocument.Parse(content, default))
+            {
+                this.ReadProperties(json.RootElement);
+            }
         }
 
         public ReadOnlyMemory<byte> Serialize()
@@ -218,12 +225,40 @@ namespace Azure.Security.KeyVault
 
             json.WriteEndObject();
 
-            return buffer.AsMemory(0, json.BytesWritten);
+            return buffer.AsMemory<byte>(0, json.BytesWritten);
         }
 
         internal abstract void WriteProperties(Utf8JsonWriter json);
 
         internal abstract void ReadProperties(JsonElement json);
+
+
+        // TODO (pri 3): CoreFx will soon have a type like this. We should remove this one then.
+        internal class FixedSizedBufferWriter : IBufferWriter<byte>
+        {
+            private readonly byte[] _buffer;
+            private int _count;
+
+            public FixedSizedBufferWriter(byte[] buffer)
+            {
+                _buffer = buffer;
+            }
+
+            public Memory<byte> GetMemory(int minimumLength = 0) => _buffer.AsMemory(_count);
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public Span<byte> GetSpan(int minimumLength = 0) => _buffer.AsSpan(_count);
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public void Advance(int bytes)
+            {
+                _count += bytes;
+                if (_count > _buffer.Length)
+                {
+                    throw new InvalidOperationException("Cannot advance past the end of the buffer.");
+                }
+            }
+        }
     }
     
 
