@@ -54,6 +54,8 @@ namespace Azure.Core.Http.Pipeline
                 _requestMessage.RequestUri = uri;
             }
 
+            public override PipelineMethod Method => ToPipelineMethod(_requestMessage.Method);
+
             public override void AddHeader(HttpHeader header)
             {
                 var valueString = Utf8.ToString(header.Value);
@@ -146,6 +148,19 @@ namespace Azure.Core.Http.Pipeline
                     case PipelineMethod.Post: return HttpMethod.Post;
                     case PipelineMethod.Put: return HttpMethod.Put;
                     case PipelineMethod.Delete: return HttpMethod.Delete;
+
+                    default: throw new NotImplementedException();
+                }
+            }
+
+            public static PipelineMethod ToPipelineMethod(HttpMethod method)
+            {
+                var methodStr = method.Method.ToLowerInvariant();
+                switch (methodStr) {
+                    case "get": return PipelineMethod.Get;
+                    case "post": return PipelineMethod.Post;
+                    case "put": return PipelineMethod.Put;
+                    case "delete": return PipelineMethod.Delete;
 
                     default: throw new NotImplementedException();
                 }

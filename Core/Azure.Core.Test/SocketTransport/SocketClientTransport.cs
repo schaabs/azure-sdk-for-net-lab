@@ -39,6 +39,7 @@ namespace Azure.Core.Http
             SslStream _sslStream;
 
             string _host;
+            PipelineMethod _method;
             Sequence<byte> _requestBuffer;
             Sequence<byte> _responseBuffer;
             PipelineContent _requestContent;
@@ -57,12 +58,15 @@ namespace Azure.Core.Http
 
             public override void SetRequestLine(PipelineMethod method, Uri uri)
             {
+                _method = method;
                 _host = uri.Host;
                 var path = uri.PathAndQuery;
 
                 Http.WriteRequestLine(ref _requestBuffer, "https", method, Encoding.ASCII.GetBytes(path));
                 AddHeader("Host", _host);
             }
+
+            public override PipelineMethod Method => _method;
 
             internal virtual async Task<Sequence<byte>> ReceiveAsync(Sequence<byte> buffer)
                 => await _sslStream.ReadAsync(buffer, Cancellation).ConfigureAwait(false);

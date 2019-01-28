@@ -13,7 +13,7 @@ namespace Azure.Core.Http
     {
         static readonly PipelinePolicy s_defaultLoggingPolicy = new LoggingPolicy();
         // TODO (pri 2): what are the default status codes to retry?
-        static readonly PipelinePolicy s_defaultRetryPolicy = Pipeline.RetryPolicy.CreateFixed(3, TimeSpan.Zero, 
+        static readonly PipelinePolicy s_defaultRetryPolicy = Pipeline.RetryPolicy.CreateFixed(3, TimeSpan.Zero,
             500, // Internal Server Error 
             504  // Gateway Timeout
         );

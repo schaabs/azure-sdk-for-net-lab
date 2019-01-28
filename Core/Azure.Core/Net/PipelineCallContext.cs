@@ -3,12 +3,9 @@
 // license information.
 
 using System;
-using System.Buffers.Text;
 using System.ComponentModel;
 using System.IO;
-using System.Text;
 using System.Threading;
-using static System.Buffers.Text.Encodings;
 
 namespace Azure.Core.Http
 {
@@ -34,6 +31,8 @@ namespace Azure.Core.Http
             => AddHeader(new HttpHeader(name, value));
 
         public abstract void SetContent(PipelineContent content);
+
+        public abstract PipelineMethod Method { get; }
 
         // response
         public Response Response => new Response(this);
