@@ -4,6 +4,7 @@
 
 using Azure.Core.Http.Pipeline;
 using System;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,61 +13,50 @@ namespace Azure.Core.Http
 {
     public struct HttpPipeline
     {
-        PipelinePolicy[] _pipeline;
-        int _pipelineCount;
+        static readonly PipelineTransport s_defaultTransport = new HttpPipelineTransport();
+        static readonly PipelinePolicy s_defaultLoggingPolicy = new LoggingPolicy();
+        // TODO (pri 2): what are the default status codes to retry?
+        static readonly PipelinePolicy s_defaultRetryPolicy = RetryPolicy.CreateFixed(3, TimeSpan.Zero,
+            500, // Internal Server Error 
+            504  // Gateway Timeout
+        );
 
-        ReadOnlyMemory<PipelinePolicy> Pipeline {
-            get {
-                var index = _pipeline.Length - _pipelineCount;
-                return _pipeline.AsMemory(index, _pipelineCount);
-            }
-        }
+        PipelinePolicy[] _pipeline;
+
+        ReadOnlyMemory<PipelinePolicy> Pipeline => new ReadOnlyMemory<PipelinePolicy>(_pipeline);
 
         PipelineTransport Transport {
             get => (PipelineTransport)_pipeline[_pipeline.Length - 1];
-            set {
-                _pipeline[_pipeline.Length - 1] = value;
-            }
         }
 
-        internal HttpPipeline(PipelineTransport transport)
-        {
-            _pipeline = new PipelinePolicy[4];
-            _pipeline[_pipeline.Length - 1] = transport;
-            _pipelineCount = 1;
-        }
-
-        internal HttpPipeline(PipelineTransport transport, params PipelinePolicy[] policies)
-            : this(transport)
-        {
-            foreach (var policy in policies) AddPolicy(policy);
-        }
-
-        internal PipelinePolicy AddPolicy(PipelinePolicy policy)
-        {
-            var index = _pipeline.Length - _pipelineCount - 1;
-            if (index < 0)
-            {
-                var larger = new PipelinePolicy[_pipeline.Length * 2];
-                Array.Copy(_pipeline, 0, larger, _pipeline.Length, _pipeline.Length);
-                _pipeline = larger;
-                index = _pipeline.Length - _pipelineCount - 1;
-            }
-            _pipeline[index] = policy;
-            _pipelineCount++;
-            return policy;
-        }
-
+        // TODO (pri 3): I am not sure this should be here. Maybe we need one per service, as they have different retry policies
         public static HttpPipeline Create(PipelineOptions options, string sdkName, string sdkVersion)
         {
             var ua = HttpHeader.Common.CreateUserAgent(sdkName, sdkVersion, options.ApplicationId);
 
-            var pipeline = new HttpPipeline(
-                options.Transport,
-                options.LoggingPolicy,
-                options.RetryPolicy,
-                new TelemetryPolicy(ua)
-            );
+            PipelinePolicy[] policies = new PipelinePolicy[options.PolicyCount + 1];
+            int index = 0;
+
+            if (options.TelemetryPolicy != null) {
+                policies[index++] = OptionOrDefault(options.TelemetryPolicy, defaultPolicy: new TelemetryPolicy(ua));
+            }
+            foreach (var policy in options.PerCallPolicies) {
+                if (policy == null) throw new InvalidOperationException("null policy");
+                policies[index++] = policy;
+            }
+            if (options.RetryPolicy != null) { 
+                policies[index++] = OptionOrDefault(options.RetryPolicy, defaultPolicy: s_defaultRetryPolicy);
+            }
+            foreach (var policy in options.PerRetryPolicies) {
+                if (policy == null) throw new InvalidOperationException("null policy");
+                policies[index++] = policy;
+            }
+            if (options.LoggingPolicy != null) {
+                policies[index++] = OptionOrDefault(options.LoggingPolicy, defaultPolicy: s_defaultLoggingPolicy);
+            }
+            policies[index++] = options.Transport==null? s_defaultTransport : options.Transport; 
+
+            var pipeline = new HttpPipeline() { _pipeline = policies };
             return pipeline;
         }
 
@@ -76,6 +66,10 @@ namespace Azure.Core.Http
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public async Task ProcessAsync(HttpMessage message)
             => await PipelinePolicy.ProcessNextAsync(Pipeline, message).ConfigureAwait(false);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static PipelinePolicy OptionOrDefault(PipelinePolicy policy, PipelinePolicy defaultPolicy)
+            => PipelineOptions.IsDefault(policy) ? defaultPolicy : policy;
     }
 }
 

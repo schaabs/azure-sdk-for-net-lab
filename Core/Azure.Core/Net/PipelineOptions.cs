@@ -6,29 +6,61 @@ using Azure.Core.Http.Pipeline;
 using System;
 using System.Buffers;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace Azure.Core.Http
 {
     public class PipelineOptions
     {
-        static readonly PipelinePolicy s_defaultLoggingPolicy = new LoggingPolicy();
-        // TODO (pri 2): what are the default status codes to retry?
-        static readonly PipelinePolicy s_defaultRetryPolicy = Pipeline.RetryPolicy.CreateFixed(3, TimeSpan.Zero,
-            500, // Internal Server Error 
-            504  // Gateway Timeout
-        );
+        static readonly PipelinePolicy s_default = new Default();
 
-        static readonly PipelineTransport s_defaultTransport = new HttpPipelineTransport();
+        PipelineTransport _transport;
 
         public ArrayPool<byte> Pool { get; set; } = ArrayPool<byte>.Shared;
 
-        public PipelineTransport Transport { get; set; } = s_defaultTransport;
+        public PipelineTransport Transport {
+            get => _transport;
+            set {
+                if (value == null) throw new ArgumentNullException(nameof(value));
+                _transport = value;
+            }
+        }
 
-        public PipelinePolicy LoggingPolicy { get; set; } = s_defaultLoggingPolicy;
+        public PipelinePolicy TelemetryPolicy { get; set; } = s_default;
 
-        public PipelinePolicy RetryPolicy { get; set; } = s_defaultRetryPolicy;
+        public PipelinePolicy LoggingPolicy { get; set; } = s_default;
+
+        public PipelinePolicy RetryPolicy { get; set; } = s_default;
+
+        public PipelinePolicy[] PerCallPolicies = Array.Empty<PipelinePolicy>();
+
+        public PipelinePolicy[] PerRetryPolicies = Array.Empty<PipelinePolicy>();
 
         public string ApplicationId { get; set; }
+
+        public int PolicyCount {
+            get {
+                int numberOfPolicies = 3 + PerCallPolicies.Length + PerRetryPolicies.Length;
+                if (LoggingPolicy == null) numberOfPolicies--;
+                if (TelemetryPolicy == null) numberOfPolicies--;
+                if (RetryPolicy == null) numberOfPolicies--;
+                return numberOfPolicies;
+            }
+        }
+
+        internal static bool IsDefault(PipelinePolicy policy)
+         => policy == s_default;
+        
+        // TODO (pri 3): I am not happy with the design that needs a semtinel policy. 
+        sealed class Default : PipelinePolicy
+        {
+            public override async Task ProcessAsync(HttpMessage message, ReadOnlyMemory<PipelinePolicy> pipeline)
+            {
+                Debug.Fail("default policy should be removed");
+                await ProcessNextAsync(pipeline, message).ConfigureAwait(false);
+            }
+        }
 
         #region nobody wants to see these
         [EditorBrowsable(EditorBrowsableState.Never)]

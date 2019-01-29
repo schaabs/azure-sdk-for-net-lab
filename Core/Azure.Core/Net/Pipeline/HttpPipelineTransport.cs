@@ -17,7 +17,12 @@ namespace Azure.Core.Http.Pipeline
     // TODO (pri 2): implement chunked encoding
     public class HttpPipelineTransport : PipelineTransport
     {
-        static readonly HttpClient s_client = new HttpClient();
+        static readonly HttpClient s_defaultClient = new HttpClient();
+
+        HttpClient _client;
+
+        public HttpPipelineTransport(HttpClient client = null)
+            => _client = client == null ? s_defaultClient : client;
 
         public sealed override HttpMessage CreateMessage(PipelineOptions options, CancellationToken cancellation)
             => new Message(cancellation);
@@ -34,7 +39,7 @@ namespace Azure.Core.Http.Pipeline
         }
 
         protected virtual async Task<HttpResponseMessage> ProcessCoreAsync(CancellationToken cancellation, HttpRequestMessage httpRequest)
-            => await s_client.SendAsync(httpRequest, cancellation).ConfigureAwait(false);
+            => await _client.SendAsync(httpRequest, cancellation).ConfigureAwait(false);
 
         sealed class Message : HttpMessage
         {
