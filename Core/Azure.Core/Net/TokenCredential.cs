@@ -6,11 +6,15 @@ using System.ComponentModel;
 
 namespace Azure.Core.Http
 {
+    public delegate string TokenRefreshDelegate(out TimeSpan delay);
+
     public class TokenCredential
     {
-        public string GetToken()
+        public TokenCredential(string initialToken=null, TokenRefreshDelegate refreshDelegate=null)
         {
-            return null;
+
         }
+
+        public string Token { get; set; }
     }
 }
