@@ -3,12 +3,9 @@
 // license information.
 
 using System;
-using System.Buffers.Text;
 using System.ComponentModel;
 using System.IO;
-using System.Text;
 using System.Threading;
-using static System.Buffers.Text.Encodings;
 
 namespace Azure.Core.Http
 {
@@ -35,8 +32,10 @@ namespace Azure.Core.Http
 
         public abstract void SetContent(PipelineContent content);
 
+        public abstract PipelineMethod Method { get; }
+
         // response
-        public PipelineResponse Response => new PipelineResponse(this);
+        public Response Response => new Response(this);
 
         // make many of these protected internal
         protected internal abstract int Status { get; }
@@ -55,78 +54,5 @@ namespace Azure.Core.Http
 
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override string ToString() => base.ToString();
-    }
-
-    public readonly struct PipelineResponse
-    {
-        readonly HttpMessage _message;
-
-        public PipelineResponse(HttpMessage message)
-            => _message = message;
-
-        public int Status => _message.Status;
-
-        public Stream ContentStream => _message.ResponseContentStream;
-        
-        public bool TryGetHeader(ReadOnlySpan<byte> name, out long value)
-        {
-            value = default;
-            if (!TryGetHeader(name, out ReadOnlySpan<byte> bytes)) return false;
-            if (!Utf8Parser.TryParse(bytes, out value, out int consumed) || consumed != bytes.Length)
-                throw new Exception("bad content-length value");
-            return true;
-        }
-
-        public bool TryGetHeader(ReadOnlySpan<byte> name, out ReadOnlySpan<byte> value)
-            => _message.TryGetHeader(name, out value);
-
-        public bool TryGetHeader(ReadOnlySpan<byte> name, out string value)
-        {
-            if(TryGetHeader(name, out ReadOnlySpan<byte> span)) {
-                value = Utf8.ToString(span);
-                return true;
-            }
-            value = default;
-            return false;
-        }
-
-        public bool TryGetHeader(string name, out long value)
-        {
-            value = default;
-            if (!TryGetHeader(name, out string valueString)) return false;
-            if (!long.TryParse(valueString, out value))
-                throw new Exception("bad content-length value");
-            return true;
-        }
-
-        public bool TryGetHeader(string name, out string value)
-        {
-            var utf8Name = Encoding.ASCII.GetBytes(name);
-            return TryGetHeader(utf8Name, out value);
-        }
-
-        public void Dispose() => _message.Dispose();
-
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public override bool Equals(object obj) => base.Equals(obj);
-
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public override int GetHashCode() => base.GetHashCode();
-
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public override string ToString()
-        {
-            var responseStream = _message.ResponseContentStream;
-            if (responseStream.CanSeek)
-            {
-                var position = responseStream.Position;
-                var reader = new StreamReader(responseStream);
-                var result = $"{Status} {reader.ReadToEnd()}";
-                responseStream.Seek(position, SeekOrigin.Begin);
-                return result;
-            }
-
-            return $"Status : {Status.ToString()}";
-        }
     }
 }

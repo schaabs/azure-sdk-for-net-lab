@@ -17,7 +17,12 @@ namespace Azure.Core.Http.Pipeline
     // TODO (pri 2): implement chunked encoding
     public class HttpPipelineTransport : PipelineTransport
     {
-        static readonly HttpClient s_client = new HttpClient();
+        static readonly HttpClient s_defaultClient = new HttpClient();
+
+        HttpClient _client;
+
+        public HttpPipelineTransport(HttpClient client = null)
+            => _client = client == null ? s_defaultClient : client;
 
         public sealed override HttpMessage CreateMessage(PipelineOptions options, CancellationToken cancellation)
             => new Message(cancellation);
@@ -34,7 +39,7 @@ namespace Azure.Core.Http.Pipeline
         }
 
         protected virtual async Task<HttpResponseMessage> ProcessCoreAsync(CancellationToken cancellation, HttpRequestMessage httpRequest)
-            => await s_client.SendAsync(httpRequest, cancellation).ConfigureAwait(false);
+            => await _client.SendAsync(httpRequest, cancellation).ConfigureAwait(false);
 
         sealed class Message : HttpMessage
         {
@@ -53,6 +58,8 @@ namespace Azure.Core.Http.Pipeline
                 _requestMessage.Method = ToHttpClientMethod(method);
                 _requestMessage.RequestUri = uri;
             }
+
+            public override PipelineMethod Method => ToPipelineMethod(_requestMessage.Method);
 
             public override void AddHeader(HttpHeader header)
             {
@@ -146,6 +153,19 @@ namespace Azure.Core.Http.Pipeline
                     case PipelineMethod.Post: return HttpMethod.Post;
                     case PipelineMethod.Put: return HttpMethod.Put;
                     case PipelineMethod.Delete: return HttpMethod.Delete;
+
+                    default: throw new NotImplementedException();
+                }
+            }
+
+            public static PipelineMethod ToPipelineMethod(HttpMethod method)
+            {
+                var methodStr = method.Method.ToLowerInvariant();
+                switch (methodStr) {
+                    case "get": return PipelineMethod.Get;
+                    case "post": return PipelineMethod.Post;
+                    case "put": return PipelineMethod.Put;
+                    case "delete": return PipelineMethod.Delete;
 
                     default: throw new NotImplementedException();
                 }

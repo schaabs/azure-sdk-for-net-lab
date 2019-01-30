@@ -84,6 +84,8 @@ namespace Azure.Core.Testing
 
             protected override Stream ResponseContentStream => throw new NotImplementedException();
 
+            public override PipelineMethod Method => throw new NotImplementedException();
+
             public Message(ref PipelineOptions client, CancellationToken cancellation)
                 : base(cancellation)
             { }

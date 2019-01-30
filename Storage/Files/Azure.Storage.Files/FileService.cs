@@ -18,7 +18,7 @@ namespace Azure.Storage.Files
         const string SdkVersion = "v3.0demo";
         static HttpHeader s_defaultUAHeader = HttpHeader.Common.CreateUserAgent(SdkName, SdkVersion, null);
     
-        static readonly Func<PipelineResponse, Stream> s_parser = (response) => {
+        static readonly Func<Response, Stream> s_parser = (response) => {
             return response.ContentStream;
         };
 
@@ -44,7 +44,7 @@ namespace Azure.Storage.Files
 
                 await Pipeline.ProcessAsync(message).ConfigureAwait(false);
 
-                return new Response(message.Response);
+                return message.Response;
             }
             catch {
                 if (message != null) message.Dispose();
@@ -71,7 +71,7 @@ namespace Azure.Storage.Files
 
                 await Pipeline.ProcessAsync(message).ConfigureAwait(false);
 
-                return new Response(message.Response);
+                return message.Response;
             }
             catch {
                 if (message != null) message.Dispose();

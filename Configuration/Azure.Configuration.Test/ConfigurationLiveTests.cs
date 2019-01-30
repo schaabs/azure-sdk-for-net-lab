@@ -5,6 +5,9 @@
 using Azure.Core;
 using NUnit.Framework;
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.Tracing;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -32,6 +35,35 @@ namespace Azure.ApplicationModel.Configuration.Tests
             Assert.AreEqual(expected.Locked, actual.Locked);
         }
 
+        private async Task<string> SetMultipleKeys(ConfigurationClient service, int expectedEvents)
+        {
+            string key = string.Concat("key-", Guid.NewGuid().ToString("N")); ;
+            
+            /*
+             * The configuration store contains a KV with the Key
+             * that represents {expectedEvents} data points.
+             * If not set, create the {expectedEvents} data points and the "BatchKey"
+            */
+            const string batchKey = "BatchKey";
+            
+            try
+            {
+                var responseGet = await service.GetAsync(batchKey);
+                key = responseGet.Result.Value;
+                responseGet.Dispose();
+            }
+            catch
+            {
+                for (int i = 0; i < expectedEvents; i++)
+                {
+                    await service.AddAsync(new ConfigurationSetting(key, "test_value", $"{i.ToString()}"));
+                }
+
+                await service.SetAsync(new ConfigurationSetting(batchKey, key));
+            }
+            return key;
+        }
+
         [Test]
         public async Task DeleteNotFound()
         {
@@ -39,12 +71,9 @@ namespace Azure.ApplicationModel.Configuration.Tests
             Assert.NotNull(connectionString, "Set AZ_CONFIG_CONNECTION environment variable to the connection string");
             var service = new ConfigurationClient(connectionString);
 
-            // Prepare environment
-            Response<ConfigurationSetting> response = await service.DeleteAsync(key: s_testSetting.Key, filter: default, CancellationToken.None);
+            var response = await service.DeleteAsync(key: s_testSetting.Key, filter: default, CancellationToken.None);
 
             Assert.AreEqual(204, response.Status);
-            Assert.IsNull(response.Result);
-
             response.Dispose();
         }
 
@@ -67,13 +96,8 @@ namespace Azure.ApplicationModel.Configuration.Tests
             try
             {
                 // Test
-                Response<ConfigurationSetting> response = await service.DeleteAsync(key: testSettingDiff.Key, filter: testSettingDiff.Label, CancellationToken.None);
-
+                var response = await service.DeleteAsync(key: testSettingDiff.Key, filter: testSettingDiff.Label, CancellationToken.None);
                 Assert.AreEqual(200, response.Status);
-
-                ConfigurationSetting setting = response.Result;
-                AssertEqual(testSettingDiff, setting);
-
                 response.Dispose();
             }
             finally
@@ -98,14 +122,41 @@ namespace Azure.ApplicationModel.Configuration.Tests
             Assert.AreEqual(200, responseSet.Status);
 
             // Test
-            Response<ConfigurationSetting> response = await service.DeleteAsync(key: s_testSetting.Key, filter: s_testSetting.Label, CancellationToken.None);
+            var response = await service.DeleteAsync(key: s_testSetting.Key, filter: s_testSetting.Label, CancellationToken.None);
+
+            Assert.AreEqual(200, response.Status);
+            response.Dispose();
+            responseSet.Dispose();
+        }
+
+        [Test]
+        public async Task DeleteWithETag()
+        {
+            var connectionString = Environment.GetEnvironmentVariable("AZ_CONFIG_CONNECTION");
+            Assert.NotNull(connectionString, "Set AZ_CONFIG_CONNECTION environment variable to the connection string");
+            var service = new ConfigurationClient(connectionString);
+
+            // Prepare environment
+            Response<ConfigurationSetting> responseSet = await service.SetAsync(s_testSetting, CancellationToken.None);
+            Assert.AreEqual(200, responseSet.Status);
+            Response<ConfigurationSetting> responseGet = await service.GetAsync(s_testSetting.Key, s_testSetting.Label, CancellationToken.None);
+            Assert.AreEqual(200, responseGet.Status);
+
+            // Test
+            ConfigurationSetting settting = responseGet.Result;
+            SettingFilter filter = new SettingFilter()
+            {
+                ETag = new ETagFilter() { IfMatch = new ETag(settting.ETag) },
+                Label = settting.Label
+            };
+
+            Response response = await service.DeleteAsync(key: s_testSetting.Key, filter: filter, CancellationToken.None);
 
             Assert.AreEqual(200, response.Status);
 
-            ConfigurationSetting setting = response.Result;
-            AssertEqual(s_testSetting, setting);
-
             response.Dispose();
+            responseSet.Dispose();
+            responseGet.Dispose();
         }
 
         [Test]
@@ -114,7 +165,7 @@ namespace Azure.ApplicationModel.Configuration.Tests
             var connectionString = Environment.GetEnvironmentVariable("AZ_CONFIG_CONNECTION");
             Assert.NotNull(connectionString, "Set AZ_CONFIG_CONNECTION environment variable to the connection string");
             var service = new ConfigurationClient(connectionString);
-            
+
             try
             {
                 Response<ConfigurationSetting> response = await service.SetAsync(s_testSetting, CancellationToken.None);
@@ -144,7 +195,7 @@ namespace Azure.ApplicationModel.Configuration.Tests
             var connectionString = Environment.GetEnvironmentVariable("AZ_CONFIG_CONNECTION");
             Assert.NotNull(connectionString, "Set AZ_CONFIG_CONNECTION environment variable to the connection string");
             var service = new ConfigurationClient(connectionString);
-            
+
             try
             {
                 Response<ConfigurationSetting> response = await service.AddAsync(s_testSetting, CancellationToken.None);
@@ -166,7 +217,6 @@ namespace Azure.ApplicationModel.Configuration.Tests
                     throw new Exception($"could not delete setting {s_testSetting.Key}");
                 }
             }
-
         }
 
         [Test]
@@ -186,12 +236,16 @@ namespace Azure.ApplicationModel.Configuration.Tests
 
             var testSettingUpdate = s_testSetting.Clone();
             testSettingUpdate.Value = "test_value_update";
-            testSettingUpdate.ETag = "*";
 
             try
             {
                 // Test
-                Response<ConfigurationSetting> response = await service.UpdateAsync(testSettingUpdate, CancellationToken.None);
+                SettingFilter filter = new SettingFilter()
+                {
+                    ETag = new ETagFilter() { IfMatch = new ETag("*") }
+                };
+
+                Response<ConfigurationSetting> response = await service.UpdateAsync(testSettingUpdate, filter, CancellationToken.None);
 
                 Assert.AreEqual(200, response.Status);
 
@@ -208,6 +262,48 @@ namespace Azure.ApplicationModel.Configuration.Tests
                 if (responseDelete.Status != 200 || responseDeleteDiff.Status != 200)
                 {
                     throw new Exception($"could not delete setting");
+                }
+            }
+        }
+
+        [Test]
+        public async Task UpdateIfETag()
+        {
+            var connectionString = Environment.GetEnvironmentVariable("AZ_CONFIG_CONNECTION");
+            Assert.NotNull(connectionString, "Set AZ_CONFIG_CONNECTION environment variable to the connection string");
+            var service = new ConfigurationClient(connectionString);
+
+            Response<ConfigurationSetting> responseSet = await service.SetAsync(s_testSetting, CancellationToken.None);
+            Assert.AreEqual(200, responseSet.Status);
+            Response<ConfigurationSetting> responseGet = await service.GetAsync(s_testSetting.Key, s_testSetting.Label, CancellationToken.None);
+            Assert.AreEqual(200, responseGet.Status);
+
+            var testSettingDiff = responseGet.Result.Clone();
+            testSettingDiff.Value = "test_value_diff";
+
+            try
+            {
+                // Test
+                SettingFilter filter = new SettingFilter()
+                {
+                    ETag = new ETagFilter() { IfMatch = new ETag(testSettingDiff.ETag) }
+                };
+                Response<ConfigurationSetting> response = await service.UpdateAsync(testSettingDiff, filter, CancellationToken.None);
+
+                Assert.AreEqual(200, response.Status);
+
+                ConfigurationSetting responseSetting = response.Result;
+
+                AssertEqual(testSettingDiff, responseSetting);
+
+                response.Dispose();
+            }
+            finally
+            {
+                var responseDelete = await service.DeleteAsync(key: testSettingDiff.Key, filter: testSettingDiff.Label, CancellationToken.None);
+                if (responseDelete.Status != 200)
+                {
+                    throw new Exception($"could not delete setting {testSettingDiff.Key}");
                 }
             }
         }
@@ -236,17 +332,17 @@ namespace Azure.ApplicationModel.Configuration.Tests
                 // Test
                 var filter = new SettingBatchFilter();
                 filter.Key = setting.Key;
-                
+
                 Response<SettingBatch> response = await service.GetRevisionsAsync(filter, CancellationToken.None);
 
                 Assert.AreEqual(200, response.Status);
 
                 int resultsReturned = 0;
                 SettingBatch batch = response.Result;
-                for(int i=0; i<batch.Count; i++)
+                for (int i = 0; i < batch.Count; i++)
                 {
                     var value = batch[i];
-                    if(value.Label.Contains("update"))
+                    if (value.Label.Contains("update"))
                     {
                         AssertEqual(value, testSettingUpdate);
                     }
@@ -270,7 +366,7 @@ namespace Azure.ApplicationModel.Configuration.Tests
                 }
             }
         }
-        
+
         [Test]
         public async Task Get()
         {
@@ -309,20 +405,21 @@ namespace Azure.ApplicationModel.Configuration.Tests
         }
 
         [Test]
-        public async Task GetNotFound()
+        public void GetNotFound()
         {
             var connectionString = Environment.GetEnvironmentVariable("AZ_CONFIG_CONNECTION");
             Assert.NotNull(connectionString, "Set AZ_CONFIG_CONNECTION environment variable to the connection string");
             var service = new ConfigurationClient(connectionString);
-            
+
             // Test
-            Response<ConfigurationSetting> response = await service.GetAsync(key: s_testSetting.Key, filter: default, CancellationToken.None);
+            var e = Assert.ThrowsAsync<ResponseFailedException>(async () =>
+            {
+                await service.GetAsync(key: s_testSetting.Key, filter: default, CancellationToken.None);
+            });
 
+            var response = e.Response;
             Assert.AreEqual(404, response.Status);
-            Assert.IsNull(response.Result);
-
             response.Dispose();
-
         }
 
         [Test]
@@ -366,6 +463,64 @@ namespace Azure.ApplicationModel.Configuration.Tests
         }
 
         [Test]
+        public async Task GetBatch()
+        {
+            var connectionString = Environment.GetEnvironmentVariable("AZ_CONFIG_CONNECTION");
+            Assert.NotNull(connectionString, "Set AZ_CONFIG_CONNECTION environment variable to the connection string");
+            var service = new ConfigurationClient(connectionString);
+
+            const int expectedEvents = 105;
+            var key = await SetMultipleKeys(service, expectedEvents);
+            
+            int resultsReturned = 0;
+            SettingBatchFilter filter = new SettingBatchFilter() { Key = key };
+            while (true)
+            {
+                using (Response<SettingBatch> response = await service.GetBatchAsync(filter, CancellationToken.None))
+                {
+                    SettingBatch batch = response.Result;
+                    resultsReturned += batch.Count;
+                    filter.BatchLink = batch.Link;
+
+                    if (string.IsNullOrEmpty(filter.BatchLink)) break;
+                }
+            }
+            Assert.AreEqual(expectedEvents, resultsReturned);
+        }
+
+        [Test]
+        public async Task GetList()
+        {
+            var connectionString = Environment.GetEnvironmentVariable("AZ_CONFIG_CONNECTION");
+            Assert.NotNull(connectionString, "Set AZ_CONFIG_CONNECTION environment variable to the connection string");
+            var service = new ConfigurationClient(connectionString);
+
+            // Prepare environment
+            Response<ConfigurationSetting> responseSet = await service.SetAsync(s_testSetting, CancellationToken.None);
+            Assert.AreEqual(200, responseSet.Status);
+            try
+            {
+                Response<SettingBatch> response = await service.GetListAsync(CancellationToken.None);
+                Assert.AreEqual(200, response.Status);
+
+                SettingBatch batch = response.Result;
+
+                int resultsReturned = batch.Count;
+                //At least there should be one key available
+                Assert.GreaterOrEqual(resultsReturned, 1);
+                response.Dispose();
+            }
+            finally
+            {
+                var responseDelete = await service.DeleteAsync(key: s_testSetting.Key, filter: s_testSetting.Label, CancellationToken.None);
+                if (responseDelete.Status != 200)
+                {
+                    throw new Exception($"could not delete setting {s_testSetting.Key}");
+                }
+            }
+        }
+
+        [Test]
         public async Task LockUnlock()
         {
             var connectionString = Environment.GetEnvironmentVariable("AZ_CONFIG_CONNECTION");
@@ -391,11 +546,15 @@ namespace Azure.ApplicationModel.Configuration.Tests
                 //Test update
                 var testSettingUpdate = s_testSetting.Clone();
                 testSettingUpdate.Value = "test_value_update";
-                testSettingUpdate.ETag = "*";
 
-                Response<ConfigurationSetting> responseUpdate = await service.UpdateAsync(testSettingUpdate, CancellationToken.None);
-                Assert.AreEqual(403, responseUpdate.Status);
-                responseUpdate.Dispose();
+                var e = Assert.ThrowsAsync<ResponseFailedException>(async () =>
+                {
+                    await service.UpdateAsync(testSettingUpdate);
+                });
+                var response = e.Response;
+                Assert.AreEqual(403, response.Status);
+                response.Dispose();
+
 
                 // Test Unlock
                 Response<ConfigurationSetting> responseUnlock = await service.UnlockAsync(s_testSetting.Key, s_testSetting.Label, CancellationToken.None);
@@ -428,7 +587,8 @@ namespace Azure.ApplicationModel.Configuration.Tests
                 Label = setting.Label,
                 ContentType = setting.ContentType,
                 LastModified = setting.LastModified,
-                Locked = setting.Locked
+                Locked = setting.Locked,
+                ETag = setting.ETag
             };
         }
     }

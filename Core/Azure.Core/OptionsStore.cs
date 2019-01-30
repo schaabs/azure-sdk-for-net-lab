@@ -10,6 +10,7 @@ namespace Azure.Core
     struct OptionsStore
     {
         // TODO (pri 3): optimize the dictionaries
+        // TODO (pri 2): test that these don't get created when options are read/get, but not set.
         Dictionary<object, object> _referenceTypeOptions;
         Dictionary<object, long> _ulongOptions;
 

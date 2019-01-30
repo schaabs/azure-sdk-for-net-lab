@@ -9,6 +9,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Azure.ApplicationModel.Configuration
@@ -47,16 +48,9 @@ namespace Azure.ApplicationModel.Configuration
             }
         }
 
-        static async Task<Response<ConfigurationSetting>> CreateResponse(HttpMessage message)
+        static async Task<Response<ConfigurationSetting>> CreateResponse(Response response, CancellationToken cancellation)
         {
-            PipelineResponse response = message.Response;
-
-            if (response.Status != 200) {
-                return new Response<ConfigurationSetting>(response);
-            }
-
-            var result = await ConfigurationServiceSerializer.ParseSettingAsync(response.ContentStream, message.Cancellation);
-
+            ConfigurationSetting result = await ConfigurationServiceSerializer.DeserializeSettingAsync(response.ContentStream, cancellation);
             return new Response<ConfigurationSetting>(response, result);
         }
 
@@ -130,16 +124,16 @@ namespace Azure.ApplicationModel.Configuration
 
         void BuildBatchQuery(UriBuilder builder, SettingBatchFilter options)
         {
-            if (options.StartIndex != 0)
-            {
-                builder.AppendQuery("after", options.StartIndex);
-            }
-
             if (!string.IsNullOrEmpty(options.Key))
             {
                 builder.AppendQuery(KeyQueryFilter, options.Key);
             }
 
+            if (!string.IsNullOrEmpty(options.BatchLink))
+            {
+                builder.AppendQuery("after", options.BatchLink);
+            }
+            
             if (options.Label != null)
             {
                 if (options.Label == string.Empty)
@@ -154,6 +148,13 @@ namespace Azure.ApplicationModel.Configuration
                 var filter = (options.Fields).ToString().ToLower();
                 builder.AppendQuery(FieldsQueryFilter, filter);
             }
+        }
+
+        Uri BuildUriForList()
+        {
+            var builder = new UriBuilder(_baseUri);
+            builder.Path = KvRoute;
+            return builder.Uri;
         }
 
         Uri BuildUriForGetBatch(SettingBatchFilter options)
