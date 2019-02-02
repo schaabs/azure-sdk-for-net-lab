@@ -41,6 +41,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Azure.Security.KeyVault", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Azure.Security.KeyVault", "KeyVault\Azure.Security.KeyVault\Azure.Security.KeyVault.csproj", "{C05630F4-B615-4096-9CA0-BE83E7B77161}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Azure.Security.KeyVault.Test", "KeyVault\Azure.Security.KeyVault.Test\Azure.Security.KeyVault.Test.csproj", "{70EDAE7E-D441-4D9F-84B0-224DAA32E286}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -195,6 +197,18 @@ Global
 		{C05630F4-B615-4096-9CA0-BE83E7B77161}.Release|x64.Build.0 = Release|Any CPU
 		{C05630F4-B615-4096-9CA0-BE83E7B77161}.Release|x86.ActiveCfg = Release|Any CPU
 		{C05630F4-B615-4096-9CA0-BE83E7B77161}.Release|x86.Build.0 = Release|Any CPU
+		{70EDAE7E-D441-4D9F-84B0-224DAA32E286}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{70EDAE7E-D441-4D9F-84B0-224DAA32E286}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{70EDAE7E-D441-4D9F-84B0-224DAA32E286}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{70EDAE7E-D441-4D9F-84B0-224DAA32E286}.Debug|x64.Build.0 = Debug|Any CPU
+		{70EDAE7E-D441-4D9F-84B0-224DAA32E286}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{70EDAE7E-D441-4D9F-84B0-224DAA32E286}.Debug|x86.Build.0 = Debug|Any CPU
+		{70EDAE7E-D441-4D9F-84B0-224DAA32E286}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{70EDAE7E-D441-4D9F-84B0-224DAA32E286}.Release|Any CPU.Build.0 = Release|Any CPU
+		{70EDAE7E-D441-4D9F-84B0-224DAA32E286}.Release|x64.ActiveCfg = Release|Any CPU
+		{70EDAE7E-D441-4D9F-84B0-224DAA32E286}.Release|x64.Build.0 = Release|Any CPU
+		{70EDAE7E-D441-4D9F-84B0-224DAA32E286}.Release|x86.ActiveCfg = Release|Any CPU
+		{70EDAE7E-D441-4D9F-84B0-224DAA32E286}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -212,6 +226,7 @@ Global
 		{17023E27-DBB1-4450-8B84-B80EBD12FB53} = {B6FBC526-9217-450F-A931-DEECAEA60741}
 		{BD8CC717-530D-440C-B18E-03C5FF56F383} = {B6FBC526-9217-450F-A931-DEECAEA60741}
 		{C05630F4-B615-4096-9CA0-BE83E7B77161} = {6EB3BD43-0627-47EE-974F-0A078096F379}
+		{70EDAE7E-D441-4D9F-84B0-224DAA32E286} = {6EB3BD43-0627-47EE-974F-0A078096F379}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6FA84F6E-4A90-4B87-A618-2BF87545D195}
