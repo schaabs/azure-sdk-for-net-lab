@@ -22,7 +22,6 @@ namespace Azure.Security.KeyVault.Test
             var secretSetResult = await client.Secrets.SetAsync("setgetsecret1", "setgetsecretvalue1");
 
             var secretGetResult = await client.Secrets.GetAsync("setgetsecret1");
-
         }
 
 
@@ -33,9 +32,9 @@ namespace Azure.Security.KeyVault.Test
     {
         private static Lazy<string> s_tenantId = new Lazy<string>(() => { return Environment.GetEnvironmentVariable("AZURE_TENANT_ID"); });
 
-        private static Lazy<string> s_clientId = new Lazy<string>(() => { return Environment.GetEnvironmentVariable("AZURE_TENANT_ID"); });
+        private static Lazy<string> s_clientId = new Lazy<string>(() => { return Environment.GetEnvironmentVariable("AZURE_CLIENT_ID"); });
 
-        private static Lazy<string> s_clientSecret = new Lazy<string>(() => { return Environment.GetEnvironmentVariable("AZURE_TENANT_ID"); });
+        private static Lazy<string> s_clientSecret = new Lazy<string>(() => { return Environment.GetEnvironmentVariable("AZURE_CLIENT_SECRET"); });
 
         private static Lazy<ClientCredential> s_clientCredential = new Lazy<ClientCredential>(() => { return new ClientCredential(s_clientId.Value, s_clientSecret.Value); });
 

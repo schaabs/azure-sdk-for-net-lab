@@ -44,7 +44,7 @@ namespace Azure.Security.KeyVault
 
                 key.Deserialize(response.ContentStream);
 
-                return new Response<Secret>(response, key);
+                return new Response<Key>(response, key);
             }
         }
     }

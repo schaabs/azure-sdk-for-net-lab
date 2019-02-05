@@ -610,7 +610,7 @@ namespace Azure.Security.KeyVault
             }
         }
 
-        public ReadOnlyMemory<byte> Serialize()
+        public Memory<byte> Serialize()
         {
             byte[] buffer = new byte[1024];
 
