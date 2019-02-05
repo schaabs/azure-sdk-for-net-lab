@@ -4,25 +4,37 @@ using System;
 using System.Buffers;
 using System.ComponentModel;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Azure.Core.Http
 {
-    public delegate string TokenRefreshDelegate(out TimeSpan delay);
+    public delegate Task<TokenRefreshResult> TokenRefreshDelegate(CancellationToken cancellation);
 
     public interface ITokenCredential
     {
         string Token { get; set; }
     }
 
+    public struct TokenRefreshResult
+    {
+        public string Token;
+        public TimeSpan Delay;
+    }
+
     public class TokenCredential : ITokenCredential
     {
         private TokenCredentialImpl _impl;
 
-        public TokenCredential(TokenRefreshDelegate refreshDelegate = null)
+        protected TokenCredential(TokenRefreshDelegate refreshDelegate = null)
         {
             _impl = new TokenCredentialImpl(refreshDelegate);
         }
 
+        public TokenCredential(string token)
+            : this(refreshDelegate: null)
+        {
+            Token = token;
+        }
 
         ~TokenCredential()
         {
@@ -32,12 +44,21 @@ namespace Azure.Core.Http
             }
         }
 
-        public string Token { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public string Token { get => _impl.Token; set => _impl.Token = value; }
+
+        public static async Task<TokenCredential> CreateCredentialAsync(TokenRefreshDelegate refreshDelegate)
+        {
+            var cred = new TokenCredential(refreshDelegate);
+
+            await cred._impl.RefreshTokenAsync();
+
+            return cred;
+        }
 
         private class TokenCredentialImpl : ITokenCredential, IDisposable
         {
             TokenRefreshDelegate _refreshDelegate;
-            Timer _timer;
+            CancellationTokenSource _cancellationSource;
 
 
             public TokenCredentialImpl(TokenRefreshDelegate refreshDelegate)
@@ -46,9 +67,7 @@ namespace Azure.Core.Http
                 {
                     _refreshDelegate = refreshDelegate;
 
-                    _timer = new Timer(RefreshToken);
-
-                    RefreshToken(null);
+                    _cancellationSource = new CancellationTokenSource();
                 }
             }
 
@@ -57,21 +76,26 @@ namespace Azure.Core.Http
             // todo full dispose impl
             public void Dispose()
             {
-                if (_timer != null)
+                if (_cancellationSource != null)
                 {
-                    _timer.Dispose();
+                    _cancellationSource.Cancel();
+
+                    _cancellationSource.Dispose();
                 }
             }
-
-            private void RefreshToken(object state)
+            
+            public async Task RefreshTokenAsync()
             {
-                Token = _refreshDelegate(out TimeSpan delay);
-
-                // only schedule refresh is the returned delay is a positive time span
-                if (delay > TimeSpan.Zero)
+                if (!_cancellationSource.IsCancellationRequested)
                 {
-                    // change the timer to fire once after delay has elapsed
-                    _timer.Change(delay, TimeSpan.FromMilliseconds(-1));
+                    var result = await _refreshDelegate(_cancellationSource.Token);
+
+                    Token = result.Token;
+
+                    // we don't want to await the call because we want the refresh method to return
+                    // and then be reinvoked after the specified delay.  The result is assigned to a variable
+                    // to avoid the warning of not awaiting.
+                    var _ = Task.Delay(result.Delay, _cancellationSource.Token).ContinueWith(t => RefreshTokenAsync());
                 }
             }
         }

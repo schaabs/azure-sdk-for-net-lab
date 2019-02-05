@@ -17,9 +17,35 @@ namespace Azure.Security.KeyVault
 
         }
 
-        public async Task<Response<Key>> GetAsync(string name, string version = null)
+        public async Task<Response<Key>> GetAsync(string name, string version = null, CancellationToken cancellation = default)
         {
+            if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
 
+            Uri secretUri = new Uri(_baseUri, name + "/" + (version ?? string.Empty));
+
+            using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
+            {
+                message.SetRequestLine(PipelineMethod.Get, secretUri);
+                message.AddHeader("Host", secretUri.Host);
+                message.AddHeader("Accept", "application/json");
+                message.AddHeader("Content-Type", "application/json; charset=utf-8");
+                message.AddHeader("Authorization", "Bearer " + _credentials.Token);
+
+                await _pipeline.ProcessAsync(message);
+
+                Response response = message.Response;
+
+                if (response.Status != 200)
+                {
+                    throw new ResponseFailedException(response);
+                }
+
+                var key = new Key();
+
+                key.Deserialize(response.ContentStream);
+
+                return new Response<Secret>(response, key);
+            }
         }
     }
 
@@ -54,7 +80,7 @@ namespace Azure.Security.KeyVault
 
                 if (response.Status != 200)
                 {
-                    return new Response<Secret>(response);
+                    throw new ResponseFailedException(response);
                 }
 
                 var secret = new Secret();

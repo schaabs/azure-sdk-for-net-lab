@@ -10,23 +10,65 @@ using System.Text.Json;
 
 namespace Azure.Security.KeyVault
 {
-    internal static class JsonExtensions
+    internal static class Base64Url
     {
+    //    public static void WriteProperty(this Utf8JsonWriter json, string propertyName, string value, bool writeNull = false)
+    //    {
+    //        if (value != null)
+    //        {
+    //            json.WriteString(propertyName, value);
+    //        }
+    //    }
 
+    //    public static void WriteProperty(this Utf8JsonWriter json, string propertyName, Model value, bool writeNull = false)
+    //    {
+    //        if (value != null)
+    //        {
+    //            json.WriteStartObject(propertyName);
 
-        public static byte[] GetBase64UrlEncodedBytes(this JsonElement json)
+    //            value.WriteProperties(json);
+
+    //            json.WriteEndObject();
+    //        }
+    //    }
+
+    //    public static void WriteProperty(this Utf8JsonWriter json, string propertyName, int value)
+    //    {
+    //        json.WriteNumber(propertyName, value);
+    //    }
+
+    //    public static void WriteProperty(this Utf8JsonWriter json, string propertyName, long value)
+    //    {
+    //        json.WriteNumber(propertyName, value);
+    //    }
+
+    //    public static void WriteProperty(this Utf8JsonWriter json, string propertyName, float value)
+    //    {
+    //        json.WriteNumber(propertyName, value);
+    //    }
+
+    //    public static void WriteProperty(this Utf8JsonWriter json, string propertyName, double value)
+    //    {
+    //        json.WriteNumber(propertyName, value);
+    //    }
+
+    //    public static void ReadProperty(this JsonElement json, string propertyName, out string value)
+    //    {
+    //    }
+        
+        public static byte[] Decode(string str)
         {
-            var b64urlEncoded = json.GetString();
 
-            var str = new StringBuilder(b64urlEncoded).Replace('-', '+').Replace('_', '/').Append('=', (b64urlEncoded.Length % 4 == 0) ? 0 : 4 - (b64urlEncoded.Length % 4)).ToString();
+            str = new StringBuilder(str).Replace('-', '+').Replace('_', '/').Append('=', (str.Length % 4 == 0) ? 0 : 4 - (str.Length % 4)).ToString();
 
             return Convert.FromBase64String(str);
         }
 
-        public static void WriteBase64UrlEncodedBytes(this Utf8JsonWriter json, string propertyName, byte[] value)
+        public static string Encode(byte[] bytes)
         {
-            json.WriteString(propertyName, new StringBuilder(Convert.ToBase64String(value)).Replace('+', '-').Replace('/', '_').Replace("=", "").ToString());
+            return new StringBuilder(Convert.ToBase64String(bytes)).Replace('+', '-').Replace('/', '_').Replace("=", "").ToString();
         }
+        
     }
 
     public sealed class Key : VaultEntity
@@ -71,10 +113,11 @@ namespace Azure.Security.KeyVault
 
     public sealed class JsonWebKey : Model
     {
+        private string _kid;
         /// <summary>
         /// Key Identifier
         /// </summary>
-        public string Kid { get; set; }
+        public string Kid { get => _kid; set => _kid = value; }
 
         /// <summary>
         /// Gets or sets supported JsonWebKey key types (kty) for Elliptic
@@ -197,37 +240,37 @@ namespace Azure.Security.KeyVault
 
             if (json.TryGetProperty("n", out JsonElement n))
             {
-                N = n.GetBase64UrlEncodedBytes();
+                N = Base64Url.Decode(n.GetString());
             }
 
             if (json.TryGetProperty("e", out JsonElement e))
             {
-                E = e.GetBase64UrlEncodedBytes();
+                E = Base64Url.Decode(e.GetString());
             }
 
             if (json.TryGetProperty("dp", out JsonElement dp))
             {
-                DP = dp.GetBase64UrlEncodedBytes();
+                DP = Base64Url.Decode(dp.GetString());
             }
 
             if (json.TryGetProperty("dq", out JsonElement dq))
             {
-                DQ = dq.GetBase64UrlEncodedBytes();
+                DQ = Base64Url.Decode(dq.GetString());
             }
 
             if (json.TryGetProperty("qi", out JsonElement qi))
             {
-                QI = qi.GetBase64UrlEncodedBytes();
+                QI = Base64Url.Decode(qi.GetString());
             }
 
             if (json.TryGetProperty("p", out JsonElement p))
             {
-                P = p.GetBase64UrlEncodedBytes();
+                P = Base64Url.Decode(p.GetString());
             }
 
             if (json.TryGetProperty("q", out JsonElement q))
             {
-                Q = q.GetBase64UrlEncodedBytes();
+                Q = Base64Url.Decode(q.GetString());
             }
 
             if (json.TryGetProperty("crv", out JsonElement crv))
@@ -237,27 +280,27 @@ namespace Azure.Security.KeyVault
 
             if (json.TryGetProperty("x", out JsonElement x))
             {
-                X = x.GetBase64UrlEncodedBytes();
+                X = Base64Url.Decode(x.GetString());
             }
             
             if (json.TryGetProperty("y", out JsonElement y))
             {
-                Y = y.GetBase64UrlEncodedBytes();
+                Y = Base64Url.Decode(y.GetString());
             }
 
             if (json.TryGetProperty("d", out JsonElement d))
             {
-                D = d.GetBase64UrlEncodedBytes();
+                D = Base64Url.Decode(d.GetString());
             }
 
             if (json.TryGetProperty("k", out JsonElement k))
             {
-                K = k.GetBase64UrlEncodedBytes();
+                K = Base64Url.Decode(k.GetString());
             }
 
             if (json.TryGetProperty("t", out JsonElement t))
             {
-                T = t.GetBase64UrlEncodedBytes();
+                T = Base64Url.Decode(t.GetString());
             }
         }
 
@@ -287,37 +330,37 @@ namespace Azure.Security.KeyVault
 
             if(N != null)
             {
-                json.WriteBase64UrlEncodedBytes("n", N);
+                json.WriteString("n", Base64Url.Encode(N));
             }
 
             if (E != null)
             {
-                json.WriteBase64UrlEncodedBytes("e", E);
+                json.WriteString("e", Base64Url.Encode(E));
             }
 
             if (DP != null)
             {
-                json.WriteBase64UrlEncodedBytes("dp", DP);
+                json.WriteString("dp", Base64Url.Encode(DP));
             }
 
             if(DQ != null)
             {
-                json.WriteBase64UrlEncodedBytes("dq", DQ);
+                json.WriteString("dq", Base64Url.Encode(DQ));
             }
 
             if(QI != null)
             {
-                json.WriteBase64UrlEncodedBytes("qi", QI);
+                json.WriteString("qi", Base64Url.Encode(QI));
             }
 
             if(P != null)
             {
-                json.WriteBase64UrlEncodedBytes("p", P);
+                json.WriteString("p", Base64Url.Encode(P));
             }
 
             if (Q != null)
             {
-                json.WriteBase64UrlEncodedBytes("q", Q);
+                json.WriteString("q", Base64Url.Encode(Q));
             }
 
             if (Crv != null)
@@ -327,27 +370,27 @@ namespace Azure.Security.KeyVault
 
             if (X != null)
             {
-                json.WriteBase64UrlEncodedBytes("x", X);
+                json.WriteString("x", Base64Url.Encode(X));
             }
 
             if (Y != null)
             {
-                json.WriteBase64UrlEncodedBytes("y", Y);
+                json.WriteString("y", Base64Url.Encode(Y));
             }
 
             if (D != null)
             {
-                json.WriteBase64UrlEncodedBytes("d", D);
+                json.WriteString("d", Base64Url.Encode(D));
             }
 
             if (K != null)
             {
-                json.WriteBase64UrlEncodedBytes("k", K);
+                json.WriteString("k", Base64Url.Encode(K));
             }
 
             if (T != null)
             {
-                json.WriteBase64UrlEncodedBytes("t", T);
+                json.WriteString("t", Base64Url.Encode(T));
             }
         }
     }
