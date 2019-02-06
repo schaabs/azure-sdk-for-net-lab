@@ -5,12 +5,61 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
-using static System.Buffers.Text.Encodings;
 using System.Buffers;
 using System.ComponentModel;
 
 namespace Azure.Core.Http
 {
+    internal static class Transcoder
+    {
+        internal static bool TryUtf16ToUtf8(ReadOnlySpan<char> utf16, Span<byte> utf8, out int written)
+        {
+            unsafe
+            {
+                fixed (char* utf16Buffer = utf16)
+                fixed (byte* utf8Buffer = utf8)
+                {
+                    int needed = Encoding.UTF8.GetByteCount(utf16Buffer, utf16.Length);
+                    if (utf8.Length < needed)
+                    {
+                        written = 0;
+                        return false;
+                    }
+                    written = Encoding.UTF8.GetBytes(utf16Buffer, utf16.Length, utf8Buffer, utf8.Length);
+                    return true;
+                }
+            }
+        }
+
+        internal static bool TryUtf16ToAscii(ReadOnlySpan<char> utf16, Span<byte> ascii, out int written)
+        {
+            unsafe
+            {
+                fixed (char* utf16Buffer = utf16)
+                fixed (byte* asciiBuffer = ascii)
+                {
+                    int needed = Encoding.ASCII.GetByteCount(utf16Buffer, utf16.Length);
+                    if (ascii.Length < needed)
+                    {
+                        written = 0;
+                        return false;
+                    }
+                    written = Encoding.ASCII.GetBytes(utf16Buffer, utf16.Length, asciiBuffer, ascii.Length);
+                    return true;
+                }
+            }
+        }
+
+        internal static string AsciiToString(this ReadOnlySpan<byte> ascii)
+        {
+            unsafe
+            {
+                fixed (byte* asciiBuffer = ascii)
+                    return Encoding.ASCII.GetString(asciiBuffer, ascii.Length);
+            }
+        }
+    }
+
     public readonly struct HttpHeader : IEquatable<HttpHeader>
     {
         readonly byte[] _utf8;
@@ -37,7 +86,7 @@ namespace Azure.Core.Http
             _utf8[name.Length] = (byte)':';
 
             utf8 = utf8.Slice(name.Length + 1);
-            if (Utf8.FromUtf16(MemoryMarshal.AsBytes(value.AsSpan()), utf8, out var consumed, out int written) != OperationStatus.Done)
+            if (!Transcoder.TryUtf16ToAscii(value.AsSpan(), utf8, out _))
             {
                 throw new Exception("value is not ASCII");
             }
@@ -51,13 +100,13 @@ namespace Azure.Core.Http
             _utf8 = new byte[length];
             var utf8 = _utf8.AsSpan();
 
-            if (Utf8.FromUtf16(MemoryMarshal.AsBytes(name.AsSpan()), utf8, out var consumed, out int written) != OperationStatus.Done)
+            if (!Transcoder.TryUtf16ToAscii(name.AsSpan(), utf8, out int written))
             {
                 throw new Exception("name is not ASCII");
             }
             _utf8[written] = (byte)':';
             utf8 = utf8.Slice(written + 1);
-            if (Utf8.FromUtf16(MemoryMarshal.AsBytes(value.AsSpan()), utf8, out consumed, out written) != OperationStatus.Done)
+            if (!Transcoder.TryUtf16ToAscii(value.AsSpan(), utf8, out written))
             {
                 throw new Exception("name or value is not ASCII");
             }
@@ -67,8 +116,7 @@ namespace Azure.Core.Http
 
         internal HttpHeader(byte[] full) => _utf8 = full;
 
-        public ReadOnlySpan<byte> Value
-        {
+        public ReadOnlySpan<byte> Value {
             get {
                 var span = _utf8.AsSpan();
                 var index = span.IndexOf((byte)':');
@@ -77,8 +125,7 @@ namespace Azure.Core.Http
             }
         }
 
-        public ReadOnlySpan<byte> Name
-        {
+        public ReadOnlySpan<byte> Name {
             get {
                 var span = _utf8.AsSpan();
                 var index = span.IndexOf((byte)':');
@@ -87,7 +134,7 @@ namespace Azure.Core.Http
             }
         }
 
-        public override string ToString() => Utf8.ToString(_utf8.AsSpan(0, _utf8.Length - 2));
+        public override string ToString() => Transcoder.AsciiToString(_utf8.AsSpan(0, _utf8.Length - 2));
 
         [EditorBrowsable(EditorBrowsableState.Never)]
         public bool TryWrite(Span<byte> buffer, out int written, StandardFormat format = default)
@@ -106,7 +153,8 @@ namespace Azure.Core.Http
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override bool Equals(object obj)
         {
-            if(obj is HttpHeader header) {
+            if (obj is HttpHeader header)
+            {
                 return Equals(header);
             }
             return false;
@@ -119,7 +167,7 @@ namespace Azure.Core.Http
         {
             static readonly byte[] s_host = Encoding.ASCII.GetBytes("Host");
             public static ReadOnlySpan<byte> Host => s_host;
-           
+
             static readonly byte[] s_transferEncoding = Encoding.ASCII.GetBytes("Transfer-Encoding");
             public static ReadOnlySpan<byte> TransferEncoding => s_transferEncoding;
 
