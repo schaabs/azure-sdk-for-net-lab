@@ -4,6 +4,7 @@ using Azure.Core.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Text;
 
 namespace Azure.Security.KeyVault
 { 
@@ -12,7 +13,7 @@ namespace Azure.Security.KeyVault
         private const string keyRoute = "/keys/";
 
         public KeyClient(Uri vaultUri, TokenCredential credentials, PipelineOptions options = null)
-            : base(new Uri(vaultUri, keyRoute), credentials, options ?? new PipelineOptions())
+            : base(vaultUri, credentials, options ?? new PipelineOptions())
         {
 
         }
@@ -21,7 +22,7 @@ namespace Azure.Security.KeyVault
         {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
 
-            Uri secretUri = new Uri(_baseUri, name + "/" + (version ?? string.Empty));
+            Uri secretUri = BuildVaultUri(keyRoute + name + "/" + (version ?? string.Empty));
 
             using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
             {
@@ -52,10 +53,10 @@ namespace Azure.Security.KeyVault
 
     public sealed class SecretClient : KeyVaultClientBase
     {
-        private const string secretRoute = "/secrets/";
+        private const string SecretRoute = "/secrets/";
 
         public SecretClient(Uri vaultUri, TokenCredential credentials, PipelineOptions options = null)
-            : base(new Uri(vaultUri, secretRoute), credentials, options ?? new PipelineOptions())
+            : base(vaultUri, credentials, options ?? new PipelineOptions())
         {
 
         }
@@ -64,7 +65,7 @@ namespace Azure.Security.KeyVault
         {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
             
-            Uri secretUri = new Uri(_baseUri, name + "/" + (version ?? string.Empty));
+            Uri secretUri = BuildVaultUri(SecretRoute + name + "/" + (version ?? string.Empty));
 
             using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
             {
@@ -96,7 +97,7 @@ namespace Azure.Security.KeyVault
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
             if (string.IsNullOrEmpty(value)) throw new ArgumentNullException(nameof(value));
 
-            Uri secretUri = new Uri(_baseUri, name);
+            var secretUri = BuildVaultUri(SecretRoute + name);
 
             using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
             {
@@ -114,7 +115,12 @@ namespace Azure.Security.KeyVault
                     Tags = tags
                 };
 
-                message.SetContent(PipelineContent.Create(secret.Serialize()));
+                var content = secret.Serialize();
+
+                // TODO: remove debugging code
+                var strContent = Encoding.UTF8.GetString(content.ToArray());
+
+                message.SetContent(PipelineContent.Create(content));
 
                 await _pipeline.ProcessAsync(message);
 
@@ -149,7 +155,8 @@ namespace Azure.Security.KeyVault
 
     public abstract class KeyVaultClientBase
     {
-        protected readonly Uri _baseUri;
+        protected readonly Uri _vaultUri;
+        protected const string ApiVersion = "7.0";
         protected const string SdkName = "Azure.Security.KeyVault";
 
         protected const string SdkVersion = "1.0.0";
@@ -158,15 +165,27 @@ namespace Azure.Security.KeyVault
         protected readonly PipelineOptions _options;
         protected readonly HttpPipeline _pipeline;
 
-        protected KeyVaultClientBase(Uri baseUri, TokenCredential credentials, PipelineOptions options)
+        protected KeyVaultClientBase(Uri vaultUri, TokenCredential credentials, PipelineOptions options)
         {
 
             if (credentials == null) throw new ArgumentNullException(nameof(credentials));
             if (options == null) throw new ArgumentNullException(nameof(options));
 
-            _baseUri = baseUri;
+            _vaultUri = vaultUri;
+            _credentials = credentials;
             _options = options;
             _pipeline = HttpPipeline.Create(_options, SdkName, SdkVersion);
+        }
+
+        protected Uri BuildVaultUri(string path)
+        {
+            var uriBuilder = new UriBuilder(_vaultUri);
+
+            uriBuilder.Path = path;
+
+            uriBuilder.AppendQuery("api-version", ApiVersion);
+
+            return uriBuilder.Uri;
         }
     }
 

@@ -94,20 +94,20 @@ namespace Azure.Security.KeyVault
             base.ReadProperties(json);
         }
 
-        internal override void WriteProperties(Utf8JsonWriter json)
+        internal override void WriteProperties(ref Utf8JsonWriter json)
         {
             if(KeyMaterial != null)
             {
                 json.WriteStartObject("key");
 
-                Attributes.WriteProperties(json);
+                Attributes.WriteProperties(ref json);
 
                 json.WriteEndObject();
             }
 
             // managed is read only don't serialize
 
-            base.WriteProperties(json);
+            base.WriteProperties(ref json);
         }
     }
 
@@ -304,7 +304,7 @@ namespace Azure.Security.KeyVault
             }
         }
 
-        internal override void WriteProperties(Utf8JsonWriter json)
+        internal override void WriteProperties(ref Utf8JsonWriter json)
         {
             if (Kid != null)
             {
@@ -431,7 +431,7 @@ namespace Azure.Security.KeyVault
             base.ReadProperties(json);
         }
 
-        internal override void WriteProperties(Utf8JsonWriter json)
+        internal override void WriteProperties(ref Utf8JsonWriter json)
         {
             if (Value != null)
             {
@@ -443,7 +443,7 @@ namespace Azure.Security.KeyVault
                 json.WriteString("contentType", ContentType);
             }
 
-            base.WriteProperties(json);
+            base.WriteProperties(ref json);
 
             // Kid is read-only don't serialize
 
@@ -482,7 +482,7 @@ namespace Azure.Security.KeyVault
             }
         }
 
-        internal override void WriteProperties(Utf8JsonWriter json)
+        internal override void WriteProperties(ref Utf8JsonWriter json)
         {
             // Id is read-only don't serialize
 
@@ -490,7 +490,7 @@ namespace Azure.Security.KeyVault
             {
                 json.WriteStartObject("attributes");
 
-                Attributes.WriteProperties(json);
+                Attributes.WriteProperties(ref json);
 
                 json.WriteEndObject();
             }
@@ -553,22 +553,22 @@ namespace Azure.Security.KeyVault
 
             if(json.TryGetProperty("nbf", out JsonElement nbf))
             {
-                NotBefore = DateTimeOffset.FromUnixTimeMilliseconds(nbf.GetInt64()).DateTime;
+                NotBefore = DateTimeOffset.FromUnixTimeMilliseconds(nbf.GetInt64()).UtcDateTime;
             }
 
             if(json.TryGetProperty("exp", out JsonElement exp))
             {
-                Expires = DateTimeOffset.FromUnixTimeMilliseconds(exp.GetInt64()).DateTime;
+                Expires = DateTimeOffset.FromUnixTimeMilliseconds(exp.GetInt64()).UtcDateTime;
             }
 
             if(json.TryGetProperty("created", out JsonElement created))
             {
-                Created = DateTimeOffset.FromUnixTimeMilliseconds(created.GetInt64()).DateTime;
+                Created = DateTimeOffset.FromUnixTimeMilliseconds(created.GetInt64()).UtcDateTime;
             }
 
             if(json.TryGetProperty("updated", out JsonElement updated))
             {
-                Updated = DateTimeOffset.FromUnixTimeMilliseconds(updated.GetInt64()).DateTime;
+                Updated = DateTimeOffset.FromUnixTimeMilliseconds(updated.GetInt64()).UtcDateTime;
             }
 
             if(json.TryGetProperty("recoveryLevel", out JsonElement recoveryLevel))
@@ -577,7 +577,7 @@ namespace Azure.Security.KeyVault
             }
         }
 
-        internal override void WriteProperties(Utf8JsonWriter json)
+        internal override void WriteProperties(ref Utf8JsonWriter json)
         {
             if (Enabled.HasValue)
             {
@@ -620,14 +620,14 @@ namespace Azure.Security.KeyVault
             
             json.WriteStartObject();
 
-            WriteProperties(json);
+            WriteProperties(ref json);
 
             json.WriteEndObject();
 
-            return buffer.AsMemory(0, json.BytesWritten);
+            return buffer.AsMemory(0, (int)json.BytesWritten);
         }
 
-        internal abstract void WriteProperties(Utf8JsonWriter json);
+        internal abstract void WriteProperties(ref Utf8JsonWriter json);
 
         internal abstract void ReadProperties(JsonElement json);
 
