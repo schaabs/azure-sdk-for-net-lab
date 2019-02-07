@@ -60,16 +60,10 @@ namespace Azure.Security.KeyVault
         {
 
         }
-
-        public async Task<Response<Secret>> GetLatestAsync(string name, CancellationToken cancellation = default)
-        {
-            return await GetAsync(name, null, cancellation);
-        }
-
-        public async Task<Response<Secret>> GetAsync(string name, string version, CancellationToken cancellation = default)
+        public async Task<Response<Secret>> GetAsync(string name, string version = null, CancellationToken cancellation = default)
         {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
-            
+
             Uri secretUri = BuildVaultUri(SecretRoute + name + "/" + (version ?? string.Empty));
 
             using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
@@ -96,7 +90,7 @@ namespace Azure.Security.KeyVault
                 return new Response<Secret>(response, secret);
             }
         }
-        
+
 
         public async Task<Response<Secret>> SetAsync(string name, string value, string contentType = null, VaultEntityAttributes attributes = null, IDictionary<string, string> tags = null, CancellationToken cancellation = default)
         {
@@ -142,6 +136,8 @@ namespace Azure.Security.KeyVault
                 return new Response<Secret>(response, secret);
             }
         }
+        
+
     }
 
     public abstract class KeyVaultClientBase

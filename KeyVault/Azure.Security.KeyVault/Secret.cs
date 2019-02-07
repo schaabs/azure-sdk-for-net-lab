@@ -7,58 +7,15 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
+using Azure.Core;
 
 namespace Azure.Security.KeyVault
 {
     internal static class Base64Url
     {
-    //    public static void WriteProperty(this Utf8JsonWriter json, string propertyName, string value, bool writeNull = false)
-    //    {
-    //        if (value != null)
-    //        {
-    //            json.WriteString(propertyName, value);
-    //        }
-    //    }
-
-    //    public static void WriteProperty(this Utf8JsonWriter json, string propertyName, Model value, bool writeNull = false)
-    //    {
-    //        if (value != null)
-    //        {
-    //            json.WriteStartObject(propertyName);
-
-    //            value.WriteProperties(json);
-
-    //            json.WriteEndObject();
-    //        }
-    //    }
-
-    //    public static void WriteProperty(this Utf8JsonWriter json, string propertyName, int value)
-    //    {
-    //        json.WriteNumber(propertyName, value);
-    //    }
-
-    //    public static void WriteProperty(this Utf8JsonWriter json, string propertyName, long value)
-    //    {
-    //        json.WriteNumber(propertyName, value);
-    //    }
-
-    //    public static void WriteProperty(this Utf8JsonWriter json, string propertyName, float value)
-    //    {
-    //        json.WriteNumber(propertyName, value);
-    //    }
-
-    //    public static void WriteProperty(this Utf8JsonWriter json, string propertyName, double value)
-    //    {
-    //        json.WriteNumber(propertyName, value);
-    //    }
-
-    //    public static void ReadProperty(this JsonElement json, string propertyName, out string value)
-    //    {
-    //    }
-        
         public static byte[] Decode(string str)
         {
-
             str = new StringBuilder(str).Replace('-', '+').Replace('_', '/').Append('=', (str.Length % 4 == 0) ? 0 : 4 - (str.Length % 4)).ToString();
 
             return Convert.FromBase64String(str);
@@ -658,8 +615,85 @@ namespace Azure.Security.KeyVault
                 }
             }
         }
-        
     }
     
+    public class PagedCollection<T>
+        where T : Model, new()
+    {
+        private int _idx = 0;
+        private Page<T> _currentPage;
+
+        public Page<T> CurrentPage { get => _currentPage; }
+
+        public async Task<T> GetNextAsync()
+        {
+            if (_idx < _currentPage.Items.Length)
+            {
+                return _currentPage.Items[_idx++];
+            }
+
+            if (string.IsNullOrEmpty(_currentPage.NextLink))
+            {
+                return null;
+            }
+
+            _currentPage = await _currentPage.GetNextPageAsync();
+
+            _idx = 0;
+
+            return await GetNextAsync();
+        }
+    }
+
+    public class Page<T>
+        where T : Model, new()
+    {
+        private T[] _items;
+        private string _nextLink;
+        private Func<string, Task<Response<Page<T>>>> _nextPageCallback;
+
+
+        public async Task<Response<Page<T>>> GetNextPageAsync()
+        {
+            if (string.IsNullOrEmpty(_nextLink))
+            {
+                throw new InvalidOperationException();
+            }
+
+            return await _nextPageCallback(_nextLink);
+        }
+
+
+        public ReadOnlySpan<T> Items { get => _items.AsSpan(); }
+
+        public string NextLink { get => _nextLink; }
+
+        public void Deserialize(Stream content)
+        {
+            using (JsonDocument json = JsonDocument.Parse(content, default))
+            {
+                if (json.RootElement.TryGetProperty("value", out JsonElement value))
+                {
+                    _items = new T[value.GetArrayLength()];
+
+                    int i = 0;
+
+                    foreach(var elem in value.EnumerateArray())
+                    {
+                        _items[i] = new T();
+
+                        _items[i].ReadProperties(elem);
+
+                        i++;
+                    }
+                }
+
+                if (json.RootElement.TryGetProperty("nextLink", out JsonElement nextLink))
+                {
+                    _nextLink = nextLink.GetString();
+                }
+            }
+        }
+    }
 
 }
