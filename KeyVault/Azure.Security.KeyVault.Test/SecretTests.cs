@@ -4,6 +4,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+using System.Collections.Generic;
 
 namespace Azure.Security.KeyVault.Test
 {
@@ -23,7 +24,7 @@ namespace Azure.Security.KeyVault.Test
 
             var getResult = await client.Secrets.GetAsync("SetGetAsyncBasic");
 
-            AssertSecretEqual(setResult, getResult);
+            AssertSecretsEqual(setResult, getResult);
         }
 
         [Fact]
@@ -45,38 +46,115 @@ namespace Azure.Security.KeyVault.Test
 
             var getResult = await client.Secrets.GetAsync("SetGetAsyncWithExtendedProps");
 
-            AssertSecretEqual(setResult, getResult);
+            AssertSecretsEqual(setResult, getResult);
         }
+
+
 
         private DateTime UtcNowMs()
         {
             return DateTime.MinValue.ToUniversalTime() + TimeSpan.FromMilliseconds(new TimeSpan(DateTime.UtcNow.Ticks).TotalMilliseconds);
         }
 
-        private void AssertSecretEqual(Secret exp, Secret act)
-        {
-            Assert.Equal(exp.Id, act.Id);
-            Assert.Equal(exp.Value, act.Value);
-            Assert.Equal(exp.ContentType, act.ContentType);
-            Assert.Equal(exp.Kid, act.Kid);
-            Assert.Equal(exp.Managed, act.Managed);
+    }
+    
+    public class SecretGetVersionsTests : KeyVaultTestBase
+    {
+        private const int VersionCount = 50;
+        private readonly string SecretName = Guid.NewGuid().ToString("N");
 
-            if (exp.Attributes == null)
+        private readonly Dictionary<string, Secret> _versions = new Dictionary<string, Secret>(VersionCount);
+        private readonly KeyVaultClient _client;
+        
+        public SecretGetVersionsTests()
+        {
+            _client = new KeyVaultClient(VaultUri, TestCredential);
+
+            for (int i = 0; i < VersionCount; i++)
             {
-                Assert.Null(act.Attributes);
-            }
-            else
-            {
-                Assert.Equal(exp.Attributes.Created, act.Attributes.Created);
-                Assert.Equal(exp.Attributes.Enabled, act.Attributes.Enabled);
-                Assert.Equal(exp.Attributes.Expires, act.Attributes.Expires);
-                Assert.Equal(exp.Attributes.NotBefore, act.Attributes.NotBefore);
-                Assert.Equal(exp.Attributes.RecoveryLevel, act.Attributes.RecoveryLevel);
-                Assert.Equal(exp.Attributes.Updated, act.Attributes.Updated);
+                Secret secret = _client.Secrets.SetAsync(SecretName, Guid.NewGuid().ToString("N")).GetAwaiter().GetResult();
+
+                secret.Value = null;
+
+                _versions[secret.Id] = secret;
             }
         }
-    }
 
+        [Fact]
+        public async Task SecretsPagedCollectionIterateAll()
+        {
+            PagedCollection<Secret> versions = await _client.Secrets.GetVersionsAsync(SecretName);
+
+            Secret current;
+
+            int actVersionCount = 0;
+
+            while((current = await versions.GetNextAsync()) != null)
+            {
+                Assert.True(_versions.TryGetValue(current.Id, out Secret exp));
+                 
+                AssertSecretsEqual(exp, current);
+
+                actVersionCount++;
+            }
+
+            Assert.Equal(VersionCount, actVersionCount);
+        }
+
+        [Fact]
+        public async Task SecretsPageCollectionPagedIteration()
+        {
+            PagedCollection<Secret> versions = await _client.Secrets.GetVersionsAsync(SecretName);
+
+            Page<Secret> currentPage = versions.CurrentPage;
+
+            int actVersionCount = 0;
+
+            while (currentPage != null)
+            {
+                for(int i = 0; i < currentPage.Items.Length; i++)
+                {
+                    Assert.True(_versions.TryGetValue(currentPage.Items[i].Id, out Secret exp));
+
+                    AssertSecretsEqual(exp, currentPage.Items[i]);
+
+                    actVersionCount++;
+                }
+                
+                currentPage = await currentPage.GetNextPageAsync();
+            }
+
+            Assert.Equal(VersionCount, actVersionCount);
+        }
+
+        [Fact]
+        public async Task PagedIterationLimitPageSize()
+        {
+            PagedCollection<Secret> versions = await _client.Secrets.GetVersionsAsync(SecretName, maxPageSize: 5);
+
+            Page<Secret> currentPage = versions.CurrentPage;
+
+            int actVersionCount = 0;
+
+            while (currentPage != null)
+            {
+                Assert.True(currentPage.Items.Length <= 5);
+
+                for (int i = 0; i < currentPage.Items.Length; i++)
+                {
+                    Assert.True(_versions.TryGetValue(currentPage.Items[i].Id, out Secret exp));
+
+                    AssertSecretsEqual(exp, currentPage.Items[i]);
+
+                    actVersionCount++;
+                }
+
+                currentPage = await currentPage.GetNextPageAsync();
+            }
+
+            Assert.Equal(VersionCount, actVersionCount);
+        }
+    }
 
     public class KeyVaultTestBase
     {
@@ -103,6 +181,29 @@ namespace Azure.Security.KeyVault.Test
             var authResult = await s_authContext.Value.AcquireTokenAsync("https://vault.azure.net", s_clientCredential.Value);
             
             return new TokenRefreshResult() { Delay = authResult.ExpiresOn.AddMinutes(-5) - DateTime.UtcNow, Token = authResult.AccessToken };
+        }
+
+        protected void AssertSecretsEqual(Secret exp, Secret act)
+        {
+            Assert.Equal(exp.Id, act.Id);
+            Assert.Equal(exp.Value, act.Value);
+            Assert.Equal(exp.ContentType, act.ContentType);
+            Assert.Equal(exp.Kid, act.Kid);
+            Assert.Equal(exp.Managed, act.Managed);
+
+            if (exp.Attributes == null)
+            {
+                Assert.Null(act.Attributes);
+            }
+            else
+            {
+                Assert.Equal(exp.Attributes.Created, act.Attributes.Created);
+                Assert.Equal(exp.Attributes.Enabled, act.Attributes.Enabled);
+                Assert.Equal(exp.Attributes.Expires, act.Attributes.Expires);
+                Assert.Equal(exp.Attributes.NotBefore, act.Attributes.NotBefore);
+                Assert.Equal(exp.Attributes.RecoveryLevel, act.Attributes.RecoveryLevel);
+                Assert.Equal(exp.Attributes.Updated, act.Attributes.Updated);
+            }
         }
     }
 }

@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Azure.Core;
 
@@ -623,6 +624,11 @@ namespace Azure.Security.KeyVault
         private int _idx = 0;
         private Page<T> _currentPage;
 
+        public PagedCollection(Page<T> firstPage)
+        {
+            _currentPage = firstPage;
+        }
+
         public Page<T> CurrentPage { get => _currentPage; }
 
         public async Task<T> GetNextAsync()
@@ -632,7 +638,7 @@ namespace Azure.Security.KeyVault
                 return _currentPage.Items[_idx++];
             }
 
-            if (string.IsNullOrEmpty(_currentPage.NextLink))
+            if (_currentPage.NextLink == null)
             {
                 return null;
             }
@@ -649,24 +655,29 @@ namespace Azure.Security.KeyVault
         where T : Model, new()
     {
         private T[] _items;
-        private string _nextLink;
-        private Func<string, Task<Response<Page<T>>>> _nextPageCallback;
+        private Uri _nextLink;
+        private CancellationToken _cancellation;
+        private Func<Uri, CancellationToken, Task<Response<Page<T>>>> _nextPageCallback;
 
+        public Page(Func<Uri, CancellationToken, Task<Response<Page<T>>>> nextPageCallback = null, CancellationToken cancellation = default)
+        {
+            _nextPageCallback = nextPageCallback;
+        }
 
         public async Task<Response<Page<T>>> GetNextPageAsync()
         {
-            if (string.IsNullOrEmpty(_nextLink))
+            if (_nextLink == null)
             {
-                throw new InvalidOperationException();
+               return new Response<Page<T>>(default(Response), (Page<T>)null);
             }
 
-            return await _nextPageCallback(_nextLink);
+            return await _nextPageCallback(_nextLink, _cancellation);
         }
 
 
         public ReadOnlySpan<T> Items { get => _items.AsSpan(); }
 
-        public string NextLink { get => _nextLink; }
+        public Uri NextLink { get => _nextLink; }
 
         public void Deserialize(Stream content)
         {
@@ -690,7 +701,12 @@ namespace Azure.Security.KeyVault
 
                 if (json.RootElement.TryGetProperty("nextLink", out JsonElement nextLink))
                 {
-                    _nextLink = nextLink.GetString();
+                    var nextLinkUrl = nextLink.GetString();
+                        
+                    if (!string.IsNullOrEmpty(nextLinkUrl))
+                    {
+                        _nextLink = new Uri(nextLinkUrl);
+                    }
                 }
             }
         }

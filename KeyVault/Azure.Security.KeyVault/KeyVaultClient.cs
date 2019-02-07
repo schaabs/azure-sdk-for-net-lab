@@ -91,6 +91,20 @@ namespace Azure.Security.KeyVault
             }
         }
 
+        public async Task<Response<PagedCollection<Secret>>> GetVersionsAsync(string name, int? maxPageSize = default, CancellationToken cancellation = default)
+        {
+            if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
+
+            var query = maxPageSize.HasValue ? new KeyValuePair<string, string>[] { new KeyValuePair<string, string>("maxresults", maxPageSize.Value.ToString()) } : null;
+
+            Uri firstPageUri = BuildVaultUri(SecretRoute + name + "/versions", query);
+
+            var firstResponse = await GetPageAsync<Secret>(firstPageUri, cancellation);
+
+            firstResponse.Deconstruct(out Page<Secret> firstPage, out Response rawResponse);
+
+            return new Response<PagedCollection<Secret>>(rawResponse, new PagedCollection<Secret>(firstPage));
+        }
 
         public async Task<Response<Secret>> SetAsync(string name, string value, string contentType = null, VaultEntityAttributes attributes = null, IDictionary<string, string> tags = null, CancellationToken cancellation = default)
         {
@@ -154,23 +168,56 @@ namespace Azure.Security.KeyVault
 
         protected KeyVaultClientBase(Uri vaultUri, TokenCredential credentials, PipelineOptions options)
         {
-
-            if (credentials == null) throw new ArgumentNullException(nameof(credentials));
-            if (options == null) throw new ArgumentNullException(nameof(options));
-
-            _vaultUri = vaultUri;
-            _credentials = credentials;
-            _options = options;
+            _vaultUri = vaultUri ?? throw new ArgumentNullException(nameof(vaultUri));
+            _credentials = credentials ?? throw new ArgumentNullException(nameof(credentials));
+            _options = options ?? throw new ArgumentNullException(nameof(options));
             _pipeline = HttpPipeline.Create(_options, SdkName, SdkVersion);
         }
 
-        protected Uri BuildVaultUri(string path)
+        protected async Task<Response<Page<T>>> GetPageAsync<T>(Uri pageUri, CancellationToken cancellation)
+            where T : Model, new()
+        {
+
+            using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
+            {
+                message.SetRequestLine(PipelineMethod.Get, pageUri);
+                message.AddHeader("Host", _vaultUri.Host);
+                message.AddHeader("Accept", "application/json");
+                message.AddHeader("Content-Type", "application/json; charset=utf-8");
+                message.AddHeader("Authorization", "Bearer " + _credentials.Token);
+
+                await _pipeline.ProcessAsync(message);
+
+                Response response = message.Response;
+
+                if (response.Status != 200)
+                {
+                    throw new ResponseFailedException(response);
+                }
+
+                var page = new Page<T>(this.GetPageAsync<T>, cancellation);
+
+                page.Deserialize(response.ContentStream);
+
+                return new Response<Page<T>>(response, page);
+            }
+        }
+
+        protected Uri BuildVaultUri(string path, params KeyValuePair<string, string>[] query)
         {
             var uriBuilder = new UriBuilder(_vaultUri);
 
             uriBuilder.Path = path;
 
             uriBuilder.AppendQuery("api-version", ApiVersion);
+
+            if (query != null)
+            {
+                for(int i = 0; i < query.Length; i++)
+                {
+                    uriBuilder.AppendQuery(query[i].Key, query[i].Value);
+                }
+            }
 
             return uriBuilder.Uri;
         }
