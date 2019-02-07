@@ -63,7 +63,7 @@ namespace Azure.ApplicationModel.Configuration
                 message.SetRequestLine(PipelineMethod.Put, uri);
 
                 message.AddHeader("Host", uri.Host);
-                message.AddHeader(IfNoneMatchWildcard);
+                message.AddHeader(IfNoneMatch, "*");
                 message.AddHeader(MediaTypeKeyValueApplicationHeader);
                 message.AddHeader(HttpHeader.Common.JsonContentType);
                 message.AddHeader(HttpHeader.Common.CreateContentLength(content.Length));
@@ -125,7 +125,6 @@ namespace Azure.ApplicationModel.Configuration
                 message.SetRequestLine(PipelineMethod.Put, uri);
 
                 message.AddHeader("Host", uri.Host);
-                message.AddHeader(IfMatchName, $"\"{setting.ETag}\"");
                 message.AddHeader(MediaTypeKeyValueApplicationHeader);
                 message.AddHeader(HttpHeader.Common.JsonContentType);
                 message.AddHeader(HttpHeader.Common.CreateContentLength(content.Length));
@@ -258,28 +257,7 @@ namespace Azure.ApplicationModel.Configuration
 
                 Response response = message.Response;
                 if (response.Status == 200 || response.Status == 206 /* partial */) {
-                    var batch = await ConfigurationServiceSerializer.ParseBatchAsync(response, cancellation);
-                    return new Response<SettingBatch>(response, batch);
-                }
-                else throw new ResponseFailedException(response);
-            }
-        }
-
-        public async Task<Response<SettingBatch>> GetListAsync(CancellationToken cancellation = default)
-        {
-            var uri = BuildUriForList();
-
-            using (HttpMessage message = Pipeline.CreateMessage(_options, cancellation)) {
-                message.SetRequestLine(PipelineMethod.Get, uri);
-
-                message.AddHeader("Host", uri.Host);
-                message.AddHeader(MediaTypeKeyValueApplicationHeader);
-                AddAuthenticationHeaders(message, uri, PipelineMethod.Get, content: default, _secret, _credential);
-                await Pipeline.ProcessAsync(message).ConfigureAwait(false);
-
-                Response response = message.Response;
-                if (response.Status == 200) {
-                    var batch = await ConfigurationServiceSerializer.ParseBatchAsync(response, cancellation);
+                    var batch = await ConfigurationServiceSerializer.ParseBatchAsync(response, filter, cancellation);
                     return new Response<SettingBatch>(response, batch);
                 }
                 else throw new ResponseFailedException(response);
@@ -305,7 +283,7 @@ namespace Azure.ApplicationModel.Configuration
 
                 Response response = message.Response;
                 if (response.Status == 200 || response.Status == 206 /* partial */) {
-                    var batch = await ConfigurationServiceSerializer.ParseBatchAsync(response, cancellation);
+                    var batch = await ConfigurationServiceSerializer.ParseBatchAsync(response, filter, cancellation);
                     return new Response<SettingBatch>(response, batch);
                 }
                 else throw new ResponseFailedException(response);

@@ -43,7 +43,7 @@ namespace Azure.ApplicationModel.Configuration
         /// </summary>
         public SettingFields Fields { get; set; } = SettingFields.All;
 
-        public static implicit operator SettingFilter(string label) => new SettingFilter() { Label = label};
+        public static implicit operator SettingFilter(string label) => new SettingFilter() { Label = label };
 
         #region nobody wants to see these
         [EditorBrowsable(EditorBrowsableState.Never)]
@@ -67,5 +67,21 @@ namespace Azure.ApplicationModel.Configuration
         public string Key { get; set; } = "*";
 
         public string BatchLink { get; set; }
+
+        internal SettingBatchFilter Clone()
+        {
+            return new SettingBatchFilter()
+            {
+                Key = Key,
+                BatchLink = BatchLink
+            };
+        }
+    }
+
+    public static class LabelFilters
+    {
+        public static readonly string Null = "\0";
+
+        public static readonly string Any = "*";
     }
 }

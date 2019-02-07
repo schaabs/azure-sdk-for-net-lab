@@ -84,6 +84,10 @@ namespace Azure.ApplicationModel.Configuration
                 }
                 return _tags;
             }
+            set
+            {
+                _tags = value;
+            }
         }
 
         public bool Equals(ConfigurationSetting other)
@@ -93,6 +97,7 @@ namespace Azure.ApplicationModel.Configuration
             if (!string.Equals(Label, other.Label, StringComparison.Ordinal)) return false;
             if (!string.Equals(ContentType, other.ContentType, StringComparison.Ordinal)) return false;
             if (!LastModified.Equals(other.LastModified)) return false;
+            if (!TagsEquals(other.Tags)) return false;
             // TODO (pri 1): any other fields we should compare?
             return true;
         }
@@ -105,6 +110,18 @@ namespace Azure.ApplicationModel.Configuration
                 return Equals(other);
             }
             else return false;
+        }
+
+        private bool TagsEquals(IDictionary<string, string> other)
+        {
+            if (other == null) return false;
+            if (Tags.Count != other.Count) return false;
+            foreach (var pair in Tags)
+            {
+                if (!other.TryGetValue(pair.Key, out string value)) return false;
+                if (!string.Equals(value, pair.Value, StringComparison.Ordinal)) return false;
+            }
+            return true;
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
@@ -128,18 +145,29 @@ namespace Azure.ApplicationModel.Configuration
     public class SettingBatch
     {
         readonly ConfigurationSetting[] _settings;
+        readonly SettingBatchFilter _filter;
         readonly string _link;
 
-        public SettingBatch(ConfigurationSetting[] settings, string link)
+        internal SettingBatch(ConfigurationSetting[] settings, string link, SettingBatchFilter filter)
         {
             _settings = settings;
             _link = link;
+            _filter = filter;
         }
 
-        public string Link => _link;
-
         public ConfigurationSetting this[int index] => _settings[index];
+
         public int Count => _settings.Length;
+
+        public SettingBatchFilter NextBatch
+        {
+            get
+            {
+                var clonedFilter = _filter.Clone();
+                clonedFilter.BatchLink = _link;
+                return clonedFilter;
+            }
+        }
 
         #region nobody wants to see these
         [EditorBrowsable(EditorBrowsableState.Never)]

@@ -13,6 +13,7 @@ using Azure.Core.Http;
 using System.Buffers;
 using Azure.Core.Http.Pipeline;
 using Azure.ApplicationModel.Configuration.Test;
+using System.Collections.Generic;
 
 namespace Azure.ApplicationModel.Configuration.Tests
 {
@@ -24,7 +25,12 @@ namespace Azure.ApplicationModel.Configuration.Tests
             Label = "test_label",
             ContentType = "test_content_type",
             LastModified = new DateTimeOffset(2018, 11, 28, 9, 55, 0, 0, default),
-            Locked = false
+            Locked = false,
+            Tags = new Dictionary<string, string>
+            {
+                { "tag1", "value1" },
+                { "tag2", "value2" }
+            }
         };
 
         private static (ConfigurationClient service, TestPool<byte> pool) CreateTestService(MockHttpClientTransport transport)
@@ -54,13 +60,9 @@ namespace Azure.ApplicationModel.Configuration.Tests
             var transport = new GetMockTransport(s_testSetting.Key, default, s_testSetting);
             var (service, pool) = CreateTestService(transport);
 
-            Response<ConfigurationSetting> response = await service.GetAsync(key: s_testSetting.Key, filter : default, CancellationToken.None);
+            ConfigurationSetting setting = await service.GetAsync(key: s_testSetting.Key, filter : default, CancellationToken.None);
 
-            Assert.AreEqual(200, response.Status);
-
-            AssertEqual(s_testSetting, response.Result);
-
-            response.Dispose();
+            AssertEqual(s_testSetting, setting);
             Assert.AreEqual(0, pool.CurrentlyRented);
         }
 
@@ -87,12 +89,9 @@ namespace Azure.ApplicationModel.Configuration.Tests
             var transport = new AddMockTransport(s_testSetting);
             var (service, pool) = CreateTestService(transport);
 
-            Response<ConfigurationSetting> response = await service.AddAsync(setting: s_testSetting, CancellationToken.None);
+            ConfigurationSetting setting = await service.AddAsync(setting: s_testSetting, CancellationToken.None);
 
-            Assert.AreEqual(200, response.Status);
-            AssertEqual(s_testSetting, response.Result);
-
-            response.Dispose();
+            AssertEqual(s_testSetting, setting);
             Assert.AreEqual(0, pool.CurrentlyRented);
         }
 
@@ -102,12 +101,9 @@ namespace Azure.ApplicationModel.Configuration.Tests
             var transport = new SetMockTransport(s_testSetting);
             var (service, pool) = CreateTestService(transport);
 
-            Response<ConfigurationSetting> response = await service.SetAsync(s_testSetting, CancellationToken.None);
+            ConfigurationSetting setting = await service.SetAsync(s_testSetting, CancellationToken.None);
 
-            Assert.AreEqual(200, response.Status);
-            AssertEqual(s_testSetting, response.Result);
-
-            response.Dispose();
+            AssertEqual(s_testSetting, setting);
             Assert.AreEqual(0, pool.CurrentlyRented);
         }
 
@@ -122,12 +118,9 @@ namespace Azure.ApplicationModel.Configuration.Tests
                 ETag = new ETagFilter() { IfMatch = new ETag("*") }
             };
 
-            Response<ConfigurationSetting> response = await service.UpdateAsync(s_testSetting, filter, CancellationToken.None);
+            ConfigurationSetting setting = await service.UpdateAsync(s_testSetting, filter, CancellationToken.None);
 
-            Assert.AreEqual(200, response.Status);
-            AssertEqual(s_testSetting, response.Result);
-
-            response.Dispose();
+            AssertEqual(s_testSetting, setting);
             Assert.AreEqual(0, pool.CurrentlyRented);
         }
         
@@ -137,10 +130,7 @@ namespace Azure.ApplicationModel.Configuration.Tests
             var transport = new DeleteMockTransport(s_testSetting.Key, new SettingFilter() {Label = s_testSetting.Label }, s_testSetting);
             var (service, pool) = CreateTestService(transport);
 
-            var response = await service.DeleteAsync(key: s_testSetting.Key, filter: s_testSetting.Label);
-            Assert.AreEqual(200, response.Status);
-
-            response.Dispose();
+            await service.DeleteAsync(key: s_testSetting.Key, filter: s_testSetting.Label);
             Assert.AreEqual(0, pool.CurrentlyRented);
         }
 
@@ -166,12 +156,9 @@ namespace Azure.ApplicationModel.Configuration.Tests
         {
             var (service, pool) = CreateTestService(new LockingMockTransport(s_testSetting, lockOtherwiseUnlock: true));
 
-            Response<ConfigurationSetting> response = await service.LockAsync(s_testSetting.Key, s_testSetting.Label);
+            ConfigurationSetting setting = await service.LockAsync(s_testSetting.Key, s_testSetting.Label);
 
-            Assert.AreEqual(200, response.Status);
-            AssertEqual(s_testSetting, response.Result);
-
-            response.Dispose();
+            AssertEqual(s_testSetting, setting);
             Assert.AreEqual(0, pool.CurrentlyRented);
         }
 
@@ -180,12 +167,9 @@ namespace Azure.ApplicationModel.Configuration.Tests
         {
             var (service, pool) = CreateTestService(new LockingMockTransport(s_testSetting, lockOtherwiseUnlock: false));
 
-            Response<ConfigurationSetting> response = await service.UnlockAsync(s_testSetting.Key, s_testSetting.Label);
+            ConfigurationSetting setting = await service.UnlockAsync(s_testSetting.Key, s_testSetting.Label);
 
-            Assert.AreEqual(200, response.Status);
-            AssertEqual(s_testSetting, response.Result);
-
-            response.Dispose();
+            AssertEqual(s_testSetting, setting);
             Assert.AreEqual(0, pool.CurrentlyRented);
         }
 
@@ -211,7 +195,7 @@ namespace Azure.ApplicationModel.Configuration.Tests
                         Assert.AreEqual("key" + keyIndex.ToString(), value.Key);
                         keyIndex++;
                     }
-                    query.BatchLink = batch.Link;
+                    query = batch.NextBatch;
 
                     if (string.IsNullOrEmpty(query.BatchLink)) break;
                 }
