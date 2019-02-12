@@ -33,17 +33,13 @@ namespace Azure.Security.KeyVault
                 message.AddHeader("Content-Type", "application/json; charset=utf-8");
                 message.AddHeader("Authorization", "Bearer " + _credentials.Token);
 
-                var keyImportParameters = new KeyCreateParameters()
+                var keyImportParameters = new KeyImportParameters()
                 {
-                    Kty = kty,
-                    Crv = crv,
-                    KeySize = keySize,
-                    KeyOps = keyOps,
-                    Attributes = attributes,
-                    Tags = tags
+                    Key = key,
+                    Hsm = hsm
                 };
 
-                var content = keyCreateParams.Serialize();
+                var content = keyImportParameters.Serialize();
 
                 // TODO: remove debugging code
                 var strContent = Encoding.UTF8.GetString(content.ToArray());
@@ -163,11 +159,9 @@ namespace Azure.Security.KeyVault
         {
 
         }
-        public async Task<Response<Secret>> GetAsync(string name, string version = null, CancellationToken cancellation = default)
+        public async Task<Response<Secret>> GetAsync(Uri secretUri, CancellationToken cancellation = default)
         {
-            if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
-
-            Uri secretUri = BuildVaultUri(SecretRoute + name + "/" + (version ?? string.Empty));
+            if (secretUri == null) throw new NullReferenceException(nameof(secretUri));
 
             using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
             {
@@ -192,6 +186,15 @@ namespace Azure.Security.KeyVault
 
                 return new Response<Secret>(response, secret);
             }
+        }
+
+        public async Task<Response<Secret>> GetAsync(string name, string version = null, CancellationToken cancellation = default)
+        {
+            if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
+
+            Uri secretUri = BuildVaultUri(SecretRoute + name + "/" + (version ?? string.Empty));
+
+            return await GetAsync(secretUri, cancellation);
         }
 
         public async Task<Response<PagedCollection<Secret>>> GetVersionsAsync(string name, int? maxPageSize = default, CancellationToken cancellation = default)
