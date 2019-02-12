@@ -29,6 +29,97 @@ namespace Azure.Security.KeyVault
         
     }
 
+    internal sealed class KeyImportParameters : Model
+    {
+        public Key Key { get; set; }
+
+        public bool? Hsm { get; set; }
+
+        internal override void ReadProperties(JsonElement json)
+        {
+            throw new NotSupportedException("KeyImportParameters is a internal class for serialization of createKey requests.  Deserialization is not supported.");
+        }
+
+        internal override void WriteProperties(ref Utf8JsonWriter json)
+        {
+            if (Key != null)
+            {
+                Key.WriteProperties(ref json);
+            }
+
+            if (Hsm != null)
+            {
+                json.WriteBoolean("hsm", Hsm.Value);
+            }
+        }
+    }
+        
+
+    internal sealed class KeyCreateParameters : VaultEntity
+    {
+        /// <summary>
+        /// Gets or sets the type of key to create. For valid values, see
+        /// Microsoft.Azure.KeyVault.WebKey.JsonWebKeyType. Possible values include: 'EC', 'EC-HSM', 'RSA',
+        /// 'RSA-HSM', 'oct'
+        /// </summary>
+        public string Kty { get; set; }
+
+        /// <summary>
+        /// Gets or sets the key size in bits. For example: 2048, 3072, or 4096
+        /// for RSA.
+        /// </summary>
+        public int? KeySize { get; set; }
+
+        /// <summary>
+        /// </summary>
+        public IList<string> KeyOps { get; set; }
+        
+        /// <summary>
+        /// Gets or sets elliptic curve name. For valid values, see
+        /// Microsoft.Azure.KeyVault.WebKey.JsonWebKeyCurveName. Possible values include: 'P-256', 'P-384',
+        /// 'P-521', 'P-256K'
+        /// </summary>
+        public string Crv { get; set; }
+
+        internal override void ReadProperties(JsonElement json)
+        {
+            throw new NotSupportedException("KeyCreateParameters is a internal class for serialization of createKey requests.  Deserialization is not supported.");
+        }
+
+        internal override void WriteProperties(ref Utf8JsonWriter json)
+        {
+            if (Kty != null)
+            {
+                json.WriteString("kty", Kty);
+            }
+
+            if (KeyOps != null)
+            {
+                json.WriteStartArray("key_ops");
+
+                foreach (var op in KeyOps)
+                {
+                    json.WriteStringValue(op);
+                }
+
+                json.WriteEndArray();
+            }
+
+            if (Crv != null)
+            {
+                json.WriteString("crv", Crv);
+            }
+
+            if (KeySize.HasValue)
+            {
+                json.WriteNumber("key_size", KeySize.Value);
+            }
+
+
+            base.WriteProperties(ref json);
+        }
+    }
+
     public sealed class Key : VaultEntity
     {
         public JsonWebKey KeyMaterial { get; set; }

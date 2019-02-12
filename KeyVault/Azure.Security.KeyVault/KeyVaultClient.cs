@@ -10,7 +10,7 @@ namespace Azure.Security.KeyVault
 { 
     public sealed class KeyClient : KeyVaultClientBase
     {
-        private const string keyRoute = "/keys/";
+        private const string KeysRoute = "/keys/";
 
         public KeyClient(Uri vaultUri, TokenCredential credentials, PipelineOptions options = null)
             : base(vaultUri, credentials, options ?? new PipelineOptions())
@@ -18,16 +18,110 @@ namespace Azure.Security.KeyVault
 
         }
 
-        public async Task<Response<Key>> GetAsync(string name, string version = null, CancellationToken cancellation = default)
+        public async Task<Response<Key>> ImportAsync(string name, Key key, bool? hsm = default, CancellationToken cancellation = default)
         {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
+            if (key == null) throw new ArgumentNullException(nameof(key));
 
-            Uri secretUri = BuildVaultUri(keyRoute + name + "/" + (version ?? string.Empty));
+            var keysUri = BuildVaultUri(KeysRoute + name);
 
             using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
             {
-                message.SetRequestLine(PipelineMethod.Get, secretUri);
-                message.AddHeader("Host", secretUri.Host);
+                message.SetRequestLine(PipelineMethod.Put, keysUri);
+                message.AddHeader("Host", keysUri.Host);
+                message.AddHeader("Accept", "application/json");
+                message.AddHeader("Content-Type", "application/json; charset=utf-8");
+                message.AddHeader("Authorization", "Bearer " + _credentials.Token);
+
+                var keyImportParameters = new KeyCreateParameters()
+                {
+                    Kty = kty,
+                    Crv = crv,
+                    KeySize = keySize,
+                    KeyOps = keyOps,
+                    Attributes = attributes,
+                    Tags = tags
+                };
+
+                var content = keyCreateParams.Serialize();
+
+                // TODO: remove debugging code
+                var strContent = Encoding.UTF8.GetString(content.ToArray());
+
+                message.SetContent(PipelineContent.Create(content));
+
+                await _pipeline.ProcessAsync(message);
+
+                Response response = message.Response;
+
+                if (response.Status != 200)
+                {
+                    throw new ResponseFailedException(response);
+                }
+                
+                key.Deserialize(response.ContentStream);
+
+                return new Response<Key>(response, key);
+            }
+        }
+
+        public async Task<Response<Key>> CreateAsync(string name, string kty, string crv = null, int? keySize = null, IList<string> keyOps = null, VaultEntityAttributes attributes = null, IDictionary<string, string> tags = null, CancellationToken cancellation = default)
+        {
+            if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
+            if (string.IsNullOrEmpty(kty)) throw new ArgumentNullException(nameof(kty));
+
+            var keysUri = BuildVaultUri(KeysRoute + name);
+
+            using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
+            {
+                message.SetRequestLine(PipelineMethod.Put, keysUri);
+                message.AddHeader("Host", keysUri.Host);
+                message.AddHeader("Accept", "application/json");
+                message.AddHeader("Content-Type", "application/json; charset=utf-8");
+                message.AddHeader("Authorization", "Bearer " + _credentials.Token);
+
+                var keyCreateParams = new KeyCreateParameters()
+                {
+                    Kty = kty,
+                    Crv = crv,
+                    KeySize = keySize,
+                    KeyOps = keyOps,
+                    Attributes = attributes,
+                    Tags = tags
+                };
+
+                var content = keyCreateParams.Serialize();
+
+                // TODO: remove debugging code
+                var strContent = Encoding.UTF8.GetString(content.ToArray());
+
+                message.SetContent(PipelineContent.Create(content));
+
+                await _pipeline.ProcessAsync(message);
+
+                Response response = message.Response;
+
+                if (response.Status != 200)
+                {
+                    throw new ResponseFailedException(response);
+                }
+
+                var key = new Key();
+
+                key.Deserialize(response.ContentStream);
+
+                return new Response<Key>(response, key);
+            }
+        }
+        
+        public async Task<Response<Key>> GetAsync(Uri keyUri, CancellationToken cancellation = default)
+        {
+            if (keyUri == null) throw new ArgumentNullException(nameof(keyUri));
+
+            using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
+            {
+                message.SetRequestLine(PipelineMethod.Get, keyUri);
+                message.AddHeader("Host", keyUri.Host);
                 message.AddHeader("Accept", "application/json");
                 message.AddHeader("Content-Type", "application/json; charset=utf-8");
                 message.AddHeader("Authorization", "Bearer " + _credentials.Token);
@@ -47,6 +141,15 @@ namespace Azure.Security.KeyVault
 
                 return new Response<Key>(response, key);
             }
+        }
+
+        public async Task<Response<Key>> GetAsync(string name, string version = null, CancellationToken cancellation = default)
+        {
+            if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
+
+            Uri keyUri = BuildVaultUri(KeysRoute + name + "/" + (version ?? string.Empty));
+
+            return await GetAsync(keyUri, cancellation);
         }
     }
 
