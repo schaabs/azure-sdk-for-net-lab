@@ -16,7 +16,7 @@ namespace Azure.Security.KeyVault
 
     static class IRefreshableExtensions
     {
-        public static async Task<Response<IRefreshable<Secret>>> GetRefreshableAsync(this SecretClient client, TimeSpan refreshPeriod = default, string name, CancellationToken cancellation = default)
+        public static async Task<Response<IRefreshable<Secret>>> GetRefreshableAsync(this SecretClient client, string name, TimeSpan refreshPeriod = default, CancellationToken cancellation = default)
         {
             var response = await client.GetAsync(name, cancellation: cancellation);
 

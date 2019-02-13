@@ -16,7 +16,7 @@ namespace Azure.Security.KeyVault
 
     public static class PollerExtensions
     {
-        public static async Task<Response<IPoller<Secret>>> GetPollerAsync(this SecretClient client, TimeSpan refreshPeriod = default, string name, CancellationToken cancellation = default)
+        public static async Task<Response<IPoller<Secret>>> GetPollerAsync(this SecretClient client, string name, TimeSpan refreshPeriod = default, CancellationToken cancellation = default)
         {
             var response = await client.GetAsync(name, cancellation: cancellation);
 
