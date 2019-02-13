@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using System.Collections.Generic;
+using System.IO;
 
 namespace Azure.Security.KeyVault.Test
 {
@@ -59,6 +60,34 @@ namespace Azure.Security.KeyVault.Test
             setResult.Value = null;
 
             AssertSecretsEqual(setResult, deleteResult);
+        }
+
+        [Fact]
+        public async Task BackupRestore()
+        {
+            var backupPath = Path.GetTempFileName();
+
+            try
+            {
+                var client = new KeyVaultClient(VaultUri, TestCredential);
+
+                Secret setResult = await client.Secrets.SetAsync("BackupRestore", "BackupRestore");
+
+                await File.WriteAllBytesAsync(backupPath, await client.Secrets.BackupAsync("BackupRestore"));
+
+                await client.Secrets.DeleteAsync("BackupRestore");
+
+                Secret restoreResult = await client.Secrets.RestoreAsync(await File.ReadAllBytesAsync(backupPath));
+
+                // remove the vaule which is not set in the restore response
+                setResult.Value = null;
+
+                AssertSecretsEqual(setResult, restoreResult);
+            }
+            finally
+            {
+                File.Delete(backupPath);
+            }
         }
 
         private DateTime UtcNowMs()

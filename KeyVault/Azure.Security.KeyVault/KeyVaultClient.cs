@@ -259,7 +259,6 @@ namespace Azure.Security.KeyVault
         
         public async Task<Response<DeletedSecret>> DeleteAsync(string name, CancellationToken cancellation = default)
         {
-
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
 
             var secretUri = BuildVaultUri(SecretRoute + name);
@@ -286,6 +285,79 @@ namespace Azure.Security.KeyVault
                 deleted.Deserialize(response.ContentStream);
 
                 return new Response<DeletedSecret>(response, deleted);
+            }
+        }
+
+        // todo: could this be made better by using Stream or Span vs []?
+        public async Task<Response<byte[]>> BackupAsync(string name, CancellationToken cancellation = default)
+        {
+            if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
+
+            var secretUri = BuildVaultUri(SecretRoute + name + "/backup");
+
+            using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
+            {
+                message.SetRequestLine(PipelineMethod.Post, secretUri);
+                message.AddHeader("Host", secretUri.Host);
+                message.AddHeader("Accept", "application/json");
+                message.AddHeader("Content-Type", "application/json; charset=utf-8");
+                message.AddHeader("Authorization", "Bearer " + _credentials.Token);
+
+                await _pipeline.ProcessAsync(message);
+
+                Response response = message.Response;
+
+                if (response.Status != 200)
+                {
+                    throw new ResponseFailedException(response);
+                }
+
+                VaultBackup backup = new VaultBackup();
+
+                backup.Deserialize(response.ContentStream);
+
+                return new Response<byte[]>(response, backup.Value);
+            }
+        }
+
+        // todo: could this be made better by using Stream or Span vs []?
+        public async Task<Response<Secret>> RestoreAsync(byte[] backup, CancellationToken cancellation = default)
+        {
+            if (backup == null) throw new ArgumentNullException(nameof(backup));
+
+            var secretUri = BuildVaultUri(SecretRoute + "/restore");
+
+            using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
+            {
+                message.SetRequestLine(PipelineMethod.Post, secretUri);
+                message.AddHeader("Host", secretUri.Host);
+                message.AddHeader("Accept", "application/json");
+                message.AddHeader("Content-Type", "application/json; charset=utf-8");
+                message.AddHeader("Authorization", "Bearer " + _credentials.Token);
+
+                VaultBackup model = new VaultBackup() { Value = backup };
+
+                var content = model.Serialize();
+
+                // TODO: remove debugging code
+                var strContent = Encoding.UTF8.GetString(content.ToArray());
+
+                message.SetContent(PipelineContent.Create(content));
+
+                await _pipeline.ProcessAsync(message);
+
+                Response response = message.Response;
+
+                if (response.Status != 200)
+                {
+                    throw new ResponseFailedException(response);
+                }
+
+                var restored = new Secret();
+
+                restored.Deserialize(response.ContentStream);
+
+                return new Response<Secret>(response, restored);
             }
         }
     }

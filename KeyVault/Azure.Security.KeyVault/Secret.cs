@@ -699,6 +699,29 @@ namespace Azure.Security.KeyVault
         }
     }
 
+    internal class VaultBackup : Model
+    {
+        public byte[] Value { get; set; }
+
+        internal override void ReadProperties(JsonElement json)
+        {
+            if (json.TryGetProperty("value", out JsonElement value))
+            {
+                Value = Base64Url.Decode(value.GetString());
+            }
+        }
+
+        internal override void WriteProperties(ref Utf8JsonWriter json)
+        {
+            json.WriteString("value", Base64Url.Encode(Value));
+        }
+
+        protected override byte[] CreateSerializationBuffer()
+        {
+            return Value != null ? new byte[Value.Length * 2] : base.CreateSerializationBuffer();
+        }
+    }
+
     public abstract class Model
     {
         public void Deserialize(Stream content)
@@ -711,7 +734,7 @@ namespace Azure.Security.KeyVault
 
         public ReadOnlyMemory<byte> Serialize()
         {
-            byte[] buffer = new byte[1024];
+            byte[] buffer = CreateSerializationBuffer();
 
             var writer = new FixedSizedBufferWriter(buffer);
             
@@ -730,6 +753,10 @@ namespace Azure.Security.KeyVault
 
         internal abstract void ReadProperties(JsonElement json);
 
+        protected virtual byte[] CreateSerializationBuffer()
+        {
+            return new byte[1024];
+        }
 
         // TODO (pri 3): CoreFx will soon have a type like this. We should remove this one then.
         internal class FixedSizedBufferWriter : IBufferWriter<byte>
