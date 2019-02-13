@@ -197,7 +197,7 @@ namespace Azure.Security.KeyVault
             return await GetAsync(secretUri, cancellation);
         }
 
-        public async Task<Response<PagedCollection<Secret>>> GetVersionsAsync(string name, int? maxPageSize = default, CancellationToken cancellation = default)
+        public async Task<Response<PagedCollection<Secret>>> ListVersionsAsync(string name, int? maxPageSize = default, CancellationToken cancellation = default)
         {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
 
@@ -257,7 +257,37 @@ namespace Azure.Security.KeyVault
             }
         }
         
+        public async Task<Response<DeletedSecret>> DeleteAsync(string name, CancellationToken cancellation = default)
+        {
 
+            if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
+
+            var secretUri = BuildVaultUri(SecretRoute + name);
+
+            using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
+            {
+                message.SetRequestLine(PipelineMethod.Delete, secretUri);
+                message.AddHeader("Host", secretUri.Host);
+                message.AddHeader("Accept", "application/json");
+                message.AddHeader("Content-Type", "application/json; charset=utf-8");
+                message.AddHeader("Authorization", "Bearer " + _credentials.Token);
+
+                await _pipeline.ProcessAsync(message);
+
+                Response response = message.Response;
+
+                if (response.Status != 200)
+                {
+                    throw new ResponseFailedException(response);
+                }
+
+                DeletedSecret deleted = new DeletedSecret();
+
+                deleted.Deserialize(response.ContentStream);
+
+                return new Response<DeletedSecret>(response, deleted);
+            }
+        }
     }
 
     public abstract class KeyVaultClientBase

@@ -16,40 +16,50 @@ namespace Azure.Security.KeyVault.Test
         }
 
         [Fact]
-        public async Task SetGetAsyncBasic()
+        public async Task CrudBasic()
         {
             var client = new KeyVaultClient(VaultUri, TestCredential);
 
-            var setResult = await client.Secrets.SetAsync("SetGetAsyncBasic", "SetGetAsyncBasicValue1");
+            Secret setResult = await client.Secrets.SetAsync("CrudBasic", "CrudBasicValue1");
 
-            var getResult = await client.Secrets.GetAsync("SetGetAsyncBasic");
+            Secret getResult = await client.Secrets.GetAsync("CrudBasic");
 
             AssertSecretsEqual(setResult, getResult);
+
+            DeletedSecret deleteResult = await client.Secrets.DeleteAsync("CrudBasic");
+
+            // remove the value which is not set on the deleted response
+            setResult.Value = null;
+
+            AssertSecretsEqual(setResult, deleteResult);
         }
 
         [Fact]
-        public async Task SetGetAsyncWithExtendedProps()
+        public async Task CrudWithExtendedProps()
         {
             var client = new KeyVaultClient(VaultUri, TestCredential);
 
             var attr = new VaultEntityAttributes() { NotBefore = UtcNowMs() + TimeSpan.FromDays(1), Expires = UtcNowMs() + TimeSpan.FromDays(90) };
 
-            var setResult = await client.Secrets.SetAsync("SetGetAsyncWithExtendedProps", "SetGetAsyncWithExtendedPropsValue1", contentType:"password", attributes:attr);
+            Secret setResult = await client.Secrets.SetAsync("CrudWithExtendedProps", "CrudWithExtendedPropsValue1", contentType:"password", attributes:attr);
+            
+            Assert.Equal(attr.NotBefore, setResult.Attributes.NotBefore);
 
-            var setSecret = (Secret)setResult;
+            Assert.Equal(attr.Expires, setResult.Attributes.Expires);
 
-            Assert.Equal(attr.NotBefore, setSecret.Attributes.NotBefore);
+            Assert.Equal("password", setResult.ContentType);
 
-            Assert.Equal(attr.Expires, setSecret.Attributes.Expires);
-
-            Assert.Equal("password", setSecret.ContentType);
-
-            var getResult = await client.Secrets.GetAsync("SetGetAsyncWithExtendedProps");
+            Secret getResult = await client.Secrets.GetAsync("CrudWithExtendedProps");
 
             AssertSecretsEqual(setResult, getResult);
+
+            DeletedSecret deleteResult = await client.Secrets.DeleteAsync("CrudWithExtendedProps");
+
+            // remove the value which is not set on the deleted response
+            setResult.Value = null;
+
+            AssertSecretsEqual(setResult, deleteResult);
         }
-
-
 
         private DateTime UtcNowMs()
         {
@@ -58,7 +68,7 @@ namespace Azure.Security.KeyVault.Test
 
     }
     
-    public class SecretGetVersionsTests : KeyVaultTestBase
+    public class SecretGetVersionsTests : KeyVaultTestBase, IDisposable
     {
         private const int VersionCount = 50;
         private readonly string SecretName = Guid.NewGuid().ToString("N");
@@ -80,10 +90,15 @@ namespace Azure.Security.KeyVault.Test
             }
         }
 
+        public void Dispose()
+        {
+            var deleteResult = _client.Secrets.DeleteAsync(SecretName);
+        }
+
         [Fact]
         public async Task SecretsPagedCollectionIterateAll()
         {
-            PagedCollection<Secret> versions = await _client.Secrets.GetVersionsAsync(SecretName);
+            PagedCollection<Secret> versions = await _client.Secrets.ListVersionsAsync(SecretName);
 
             Secret current;
 
@@ -104,7 +119,7 @@ namespace Azure.Security.KeyVault.Test
         [Fact]
         public async Task SecretsPageCollectionPagedIteration()
         {
-            PagedCollection<Secret> versions = await _client.Secrets.GetVersionsAsync(SecretName);
+            PagedCollection<Secret> versions = await _client.Secrets.ListVersionsAsync(SecretName);
 
             Page<Secret> currentPage = versions.CurrentPage;
 
@@ -130,7 +145,7 @@ namespace Azure.Security.KeyVault.Test
         [Fact]
         public async Task PagedIterationLimitPageSize()
         {
-            PagedCollection<Secret> versions = await _client.Secrets.GetVersionsAsync(SecretName, maxPageSize: 5);
+            PagedCollection<Secret> versions = await _client.Secrets.ListVersionsAsync(SecretName, maxPageSize: 5);
 
             Page<Secret> currentPage = versions.CurrentPage;
 
@@ -154,6 +169,7 @@ namespace Azure.Security.KeyVault.Test
 
             Assert.Equal(VersionCount, actVersionCount);
         }
+
     }
 
     public class KeyVaultTestBase
