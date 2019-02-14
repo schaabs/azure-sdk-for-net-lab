@@ -212,6 +212,49 @@ namespace Azure.Security.KeyVault
             return new Response<PagedCollection<Secret>>(rawResponse, new PagedCollection<Secret>(firstPage));
         }
 
+        public async Task<Response<Secret>> UpdateAsync(string name, string contentType = null, VaultEntityAttributes attributes = null, IDictionary<string, string> tags = null, CancellationToken cancellation = default)
+        {
+            if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
+            
+            var secretUri = BuildVaultUri(SecretRoute + name);
+
+            using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
+            {
+                message.SetRequestLine(PipelineMethod.Patch, secretUri);
+                message.AddHeader("Host", secretUri.Host);
+                message.AddHeader("Accept", "application/json");
+                message.AddHeader("Content-Type", "application/json; charset=utf-8");
+                message.AddHeader("Authorization", "Bearer " + _credentials.Token);
+
+                var secret = new Secret()
+                {
+                    ContentType = contentType,
+                    Attributes = attributes,
+                    Tags = tags
+                };
+
+                var content = secret.Serialize();
+
+                // TODO: remove debugging code
+                var strContent = Encoding.UTF8.GetString(content.ToArray());
+
+                message.SetContent(PipelineContent.Create(content));
+
+                await _pipeline.ProcessAsync(message);
+
+                Response response = message.Response;
+
+                if (response.Status != 200)
+                {
+                    throw new ResponseFailedException(response);
+                }
+
+                secret.Deserialize(response.ContentStream);
+
+                return new Response<Secret>(response, secret);
+            }
+        }
+
         public async Task<Response<Secret>> SetAsync(string name, string value, string contentType = null, VaultEntityAttributes attributes = null, IDictionary<string, string> tags = null, CancellationToken cancellation = default)
         {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
