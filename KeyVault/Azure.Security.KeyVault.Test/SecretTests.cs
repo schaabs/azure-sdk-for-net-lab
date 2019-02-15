@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Xunit;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace Azure.Security.KeyVault.Test
 {
@@ -14,6 +15,25 @@ namespace Azure.Security.KeyVault.Test
 
         public SecretTests()
         {
+        }
+
+        [Fact]
+        public async Task CredentialProvider()
+        {
+            var client = new KeyVaultClient(VaultUri, new MockMsalCredentialProvider());
+
+            Secret setResult = await client.Secrets.SetAsync("CrudBasic", "CrudBasicValue1");
+
+            Secret getResult = await client.Secrets.GetAsync("CrudBasic");
+
+            AssertSecretsEqual(setResult, getResult);
+
+            DeletedSecret deleteResult = await client.Secrets.DeleteAsync("CrudBasic");
+
+            // remove the value which is not set on the deleted response
+            setResult.Value = null;
+
+            AssertSecretsEqual(setResult, deleteResult);
         }
 
         [Fact]
@@ -200,9 +220,28 @@ namespace Azure.Security.KeyVault.Test
         }
 
     }
+    
 
     public class KeyVaultTestBase
     {
+
+        protected class MockMsalCredentialProvider : ITokenCredentialProvider
+        {
+            public async Task<ITokenCredential> GetCredentialAsync(IEnumerable<string> scopes = null, CancellationToken cancellation = default)
+            {
+                var resource = scopes?.FirstOrDefault()?.Replace("/.Default", string.Empty);
+                
+                return await TokenCredential.CreateCredentialAsync(async (cancel) => { return await this.RefreshToken(resource, cancel); });
+            }
+
+            private async Task<TokenRefreshResult> RefreshToken(string resource, CancellationToken cancellation)
+            {
+                var authResult = await s_authContext.Value.AcquireTokenAsync(resource, s_clientCredential.Value);
+
+                return new TokenRefreshResult() { Delay = authResult.ExpiresOn.AddMinutes(-5) - DateTime.UtcNow, Token = authResult.AccessToken };
+            }
+        }
+
         private static Lazy<string> s_tenantId = new Lazy<string>(() => { return Environment.GetEnvironmentVariable("AZURE_TENANT_ID"); });
 
         private static Lazy<string> s_clientId = new Lazy<string>(() => { return Environment.GetEnvironmentVariable("AZURE_CLIENT_ID"); });

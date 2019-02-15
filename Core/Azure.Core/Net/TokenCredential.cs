@@ -2,18 +2,24 @@
 using Azure.Core.Http.Pipeline;
 using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Azure.Core.Http
 {
-    public delegate Task<TokenRefreshResult> TokenRefreshDelegate(CancellationToken cancellation);
-
     public interface ITokenCredential
     {
         string Token { get; }
     }
+
+    public interface ITokenCredentialProvider
+    {
+        Task<ITokenCredential> GetCredentialAsync(IEnumerable<string> scopes = default, CancellationToken cancellation = default);
+    }
+
+    public delegate Task<TokenRefreshResult> TokenRefreshDelegate(CancellationToken cancellation);
 
     public struct TokenRefreshResult
     {
@@ -93,8 +99,7 @@ namespace Azure.Core.Http
                     Token = result.Token;
 
                     // we don't want to await the call because we want the refresh method to return
-                    // and then be reinvoked after the specified delay.  The result is assigned to a variable
-                    // to avoid the warning of not awaiting.
+                    // and then be reinvoked after the specified delay.  
                     var _ = Task.Delay(result.Delay, _cancellationSource.Token).ContinueWith(t => RefreshTokenAsync());
                 }
             }

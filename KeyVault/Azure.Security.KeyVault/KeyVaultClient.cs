@@ -12,7 +12,13 @@ namespace Azure.Security.KeyVault
     {
         private const string KeysRoute = "/keys/";
 
-        public KeyClient(Uri vaultUri, TokenCredential credentials, PipelineOptions options = null)
+        public KeyClient(Uri vaultUri, ITokenCredentialProvider credentialProvider, PipelineOptions options = null)
+            : base(vaultUri, credentialProvider, options ?? new PipelineOptions())
+        {
+
+        }
+
+        public KeyClient(Uri vaultUri, ITokenCredential credentials, PipelineOptions options = null)
             : base(vaultUri, credentials, options ?? new PipelineOptions())
         {
 
@@ -154,11 +160,18 @@ namespace Azure.Security.KeyVault
     {
         private const string SecretRoute = "/secrets/";
 
-        public SecretClient(Uri vaultUri, TokenCredential credentials, PipelineOptions options = null)
+        public SecretClient(Uri vaultUri, ITokenCredentialProvider credentialProvider, PipelineOptions options = null)
+            : base(vaultUri, credentialProvider, options ?? new PipelineOptions())
+        {
+
+        }
+
+        public SecretClient(Uri vaultUri, ITokenCredential credentials, PipelineOptions options = null)
             : base(vaultUri, credentials, options ?? new PipelineOptions())
         {
 
         }
+
         public async Task<Response<Secret>> GetAsync(Uri secretUri, CancellationToken cancellation = default)
         {
             if (secretUri == null) throw new NullReferenceException(nameof(secretUri));
@@ -413,11 +426,17 @@ namespace Azure.Security.KeyVault
 
         protected const string SdkVersion = "1.0.0";
 
-        protected readonly TokenCredential _credentials;
+        protected readonly ITokenCredential _credentials;
         protected readonly PipelineOptions _options;
         protected readonly HttpPipeline _pipeline;
-
-        protected KeyVaultClientBase(Uri vaultUri, TokenCredential credentials, PipelineOptions options)
+        protected KeyVaultClientBase(Uri vaultUri, ITokenCredentialProvider credentialProvider, PipelineOptions options)
+        {
+            _vaultUri = vaultUri ?? throw new ArgumentNullException(nameof(vaultUri));
+            _credentials = credentialProvider != null ? credentialProvider.GetCredentialAsync(new string[] { "https://vault.azure.net/.Default" }).GetAwaiter().GetResult() : throw new ArgumentNullException(nameof(credentialProvider));
+            _options = options ?? throw new ArgumentNullException(nameof(options));
+            _pipeline = HttpPipeline.Create(_options, SdkName, SdkVersion);
+        }
+        protected KeyVaultClientBase(Uri vaultUri, ITokenCredential credentials, PipelineOptions options)
         {
             _vaultUri = vaultUri ?? throw new ArgumentNullException(nameof(vaultUri));
             _credentials = credentials ?? throw new ArgumentNullException(nameof(credentials));
@@ -476,13 +495,13 @@ namespace Azure.Security.KeyVault
 
     public class KeyVaultClient : KeyVaultClientBase
     {
-        public KeyVaultClient(Uri vaultUri, TokenCredential credentials)
-            : this(vaultUri, credentials, new PipelineOptions())
+        public KeyVaultClient(Uri vaultUri, ITokenCredentialProvider credentialProvider, PipelineOptions options = null)
+            : base(vaultUri, credentialProvider, options ?? new PipelineOptions())
         {
-
+            Secrets = new SecretClient(vaultUri, credentialProvider, options);
         }
 
-        public KeyVaultClient(Uri vaultUri, TokenCredential credentials, PipelineOptions options = null)
+        public KeyVaultClient(Uri vaultUri, ITokenCredential credentials, PipelineOptions options = null)
             : base(vaultUri, credentials, options ?? new PipelineOptions())
         {
             Secrets = new SecretClient(vaultUri, credentials, options);
