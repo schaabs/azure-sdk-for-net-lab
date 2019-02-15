@@ -12,7 +12,7 @@ namespace Azure.Core.Http
 
     public interface ITokenCredential
     {
-        string Token { get; set; }
+        string Token { get; }
     }
 
     public struct TokenRefreshResult
