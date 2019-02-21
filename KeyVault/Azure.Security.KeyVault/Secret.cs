@@ -29,6 +29,23 @@ namespace Azure.Security.KeyVault
         
     }
 
+    public class KeyOperationResult : Model
+    {
+        public string Kid { get; private set; }
+        
+        public byte[] Result { get; private set; }
+
+        internal override void ReadProperties(JsonElement json)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal override void WriteProperties(ref Utf8JsonWriter json)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
     internal sealed class KeyImportParameters : Model
     {
         public Key Key { get; set; }
@@ -120,7 +137,7 @@ namespace Azure.Security.KeyVault
         }
     }
 
-    public sealed class Key : VaultEntity
+    public class Key : VaultEntity
     {
         public JsonWebKey KeyMaterial { get; set; }
 
@@ -441,6 +458,57 @@ namespace Azure.Security.KeyVault
             {
                 json.WriteString("t", Base64Url.Encode(T));
             }
+        }
+    }
+
+    public class DeletedKey : Key
+    {
+        public string RecoveryId { get; private set; }
+
+        public DateTime? DeletedDate { get; private set; }
+
+        public DateTime? ScheduledPurgeDate { get; private set; }
+
+        internal override void WriteProperties(ref Utf8JsonWriter json)
+        {
+            base.WriteProperties(ref json);
+
+            if (RecoveryId != null)
+            {
+                json.WriteString("recoveryId", RecoveryId);
+            }
+
+            if (DeletedDate.HasValue)
+            {
+                json.WriteNumber("deletedDate", new DateTimeOffset(DeletedDate.Value).ToUnixTimeMilliseconds());
+            }
+
+            if (ScheduledPurgeDate.HasValue)
+            {
+                json.WriteNumber("scheduledPurgeDate", new DateTimeOffset(ScheduledPurgeDate.Value).ToUnixTimeMilliseconds());
+            }
+        }
+
+        internal override void ReadProperties(JsonElement json)
+        {
+            base.ReadProperties(json);
+
+            if (json.TryGetProperty("recoveryId", out JsonElement recoveryId))
+            {
+                RecoveryId = recoveryId.GetString();
+            }
+
+            if (json.TryGetProperty("deletedDate", out JsonElement deletedDate))
+            {
+                DeletedDate = DateTimeOffset.FromUnixTimeMilliseconds(deletedDate.GetInt64()).UtcDateTime;
+            }
+
+            if (json.TryGetProperty("scheduledPurgeDate", out JsonElement scheduledPurgeDate))
+            {
+                ScheduledPurgeDate = DateTimeOffset.FromUnixTimeMilliseconds(scheduledPurgeDate.GetInt64()).UtcDateTime;
+            }
+
+
         }
     }
 

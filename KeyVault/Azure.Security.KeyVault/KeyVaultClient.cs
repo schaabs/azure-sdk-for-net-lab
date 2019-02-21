@@ -153,6 +153,144 @@ namespace Azure.Security.KeyVault
 
             return await GetAsync(keyUri, cancellation);
         }
+
+        public async Task<Response<PagedCollection<Key>>> ListVersionsAsync(string name, int? maxPageSize = default, CancellationToken cancellation = default)
+        {
+            if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
+
+            var query = maxPageSize.HasValue ? new KeyValuePair<string, string>[] { new KeyValuePair<string, string>("maxresults", maxPageSize.Value.ToString()) } : null;
+
+            Uri firstPageUri = BuildVaultUri(KeysRoute + name + "/versions", query);
+
+            var firstResponse = await GetPageAsync<Key>(firstPageUri, cancellation);
+
+            firstResponse.Deconstruct(out Page<Key> firstPage, out Response rawResponse);
+
+            return new Response<PagedCollection<Key>>(rawResponse, new PagedCollection<Key>(firstPage));
+        }
+
+        public async Task<Response<PagedCollection<Secret>>> ListAsync(int? maxPageSize = default, CancellationToken cancellation = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<Response<Key>> UpdateAsync(string name, IList<string> keyOps = default, VaultEntityAttributes attributes = null, IDictionary<string, string> tags = null, CancellationToken cancellation = default)
+        {
+            throw new NotImplementedException();
+        }
+        
+        public async Task<Response<DeletedKey>> DeleteAsync(string name, CancellationToken cancellation = default)
+        {
+            if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
+
+            var secretUri = BuildVaultUri(KeysRoute + name);
+
+            using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
+            {
+                message.SetRequestLine(PipelineMethod.Delete, secretUri);
+                message.AddHeader("Host", secretUri.Host);
+                message.AddHeader("Accept", "application/json");
+                message.AddHeader("Content-Type", "application/json; charset=utf-8");
+                message.AddHeader("Authorization", "Bearer " + _credentials.Token);
+
+                await _pipeline.ProcessAsync(message);
+
+                Response response = message.Response;
+
+                if (response.Status != 200)
+                {
+                    throw new ResponseFailedException(response);
+                }
+
+                DeletedKey deleted = new DeletedKey();
+
+                deleted.Deserialize(response.ContentStream);
+
+                return new Response<DeletedKey>(response, deleted);
+            }
+        }
+
+        public async Task<Response<DeletedKey>> GetDeletedAsync(Uri recoveryId, CancellationToken cancellation = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<Response<DeletedKey>> GetDeletedAsync(string name, CancellationToken cancellation = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<Response<PagedCollection<DeletedKey>>> ListDeletedAsync(int? maxPageSize = default, CancellationToken cancellation = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<Response<Key>> RecoverAsync(Uri recoveryId, CancellationToken cancellation = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<Response<Key>> RecoverAsync(string name, CancellationToken cancellation = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        // todo: could this be made better by using Stream or Span vs []?
+        public async Task<Response<byte[]>> BackupAsync(string name, CancellationToken cancellation = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        // todo: could this be made better by using Stream or Span vs []?
+        public async Task<Response<Key>> RestoreAsync(byte[] backup, CancellationToken cancellation = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<Response<KeyOperationResult>> EncryptAsync(Uri keyId, string algorithm, byte[] value, CancellationToken cancellation = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<Response<KeyOperationResult>> EncryptAsync(string name, string algorithm, byte[] value, CancellationToken cancellation = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<Response<KeyOperationResult>> DecryptAsync(Uri keyId, string algorithm, byte[] value, CancellationToken cancellation = default)
+        {
+            throw new NotImplementedException();
+        }
+        
+        public async Task<Response<KeyOperationResult>> SignAsync(Uri keyId, string algorithm, byte[] digest, CancellationToken cancellation = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<Response<KeyOperationResult>> SignAsync(string name, string algorithm, byte[] digest, CancellationToken cancellation = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<Response<KeyOperationResult>> VerifyAsync(Uri keyId, string algorithm, byte[] digest, byte[] signature, CancellationToken cancellation = default)
+        {
+            throw new NotImplementedException();
+        }
+        
+        public async Task<Response<KeyOperationResult>> WrapKeyAsync(Uri keyId, string algorithm, byte[] value, CancellationToken cancellation = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<Response<KeyOperationResult>> WrapKeyAsync(string name, string algorithm, byte[] value, CancellationToken cancellation = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<Response<KeyOperationResult>> UnwrapKeyAsync(Uri keyId, string algorithm, byte[] value, CancellationToken cancellation = default)
+        {
+            throw new NotImplementedException();
+        }
     }
 
 
@@ -223,6 +361,11 @@ namespace Azure.Security.KeyVault
             firstResponse.Deconstruct(out Page<Secret> firstPage, out Response rawResponse);
 
             return new Response<PagedCollection<Secret>>(rawResponse, new PagedCollection<Secret>(firstPage));
+        }
+
+        public async Task<Response<PagedCollection<Secret>>> ListAsync(int? maxPageSize = default, CancellationToken cancellation = default)
+        {
+            throw new NotImplementedException();
         }
 
         public async Task<Response<Secret>> UpdateAsync(string name, string contentType = null, VaultEntityAttributes attributes = null, IDictionary<string, string> tags = null, CancellationToken cancellation = default)
@@ -342,6 +485,31 @@ namespace Azure.Security.KeyVault
 
                 return new Response<DeletedSecret>(response, deleted);
             }
+        }
+
+        public async Task<Response<DeletedSecret>> GetDeletedAsync(Uri recoveryId, CancellationToken cancellation = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<Response<DeletedSecret>> GetDeletedAsync(string name, CancellationToken cancellation = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<Response<PagedCollection<DeletedSecret>>> ListDeletedAsync(int? maxPageSize = default, CancellationToken cancellation = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<Response<Secret>> RecoverAsync(Uri recoveryId, CancellationToken cancellation = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<Response<Secret>> RecoverAsync(string name, CancellationToken cancellation = default)
+        {
+            throw new NotImplementedException();
         }
 
         // todo: could this be made better by using Stream or Span vs []?
