@@ -11,7 +11,7 @@ namespace Azure.Core.Http
 {
     public interface ITokenCredential
     {
-        string Token { get; }
+        ValueTask<string> GetTokenAsync(CancellationToken cancellation = default);
     }
 
     public interface ITokenCredentialProvider
@@ -30,16 +30,18 @@ namespace Azure.Core.Http
     public class TokenCredential : ITokenCredential
     {
         private TokenCredentialImpl _impl;
+        private Task _initTokenComplete;
 
-        protected TokenCredential(TokenRefreshDelegate refreshDelegate = null)
+        public TokenCredential(TokenRefreshDelegate refreshDelegate)
         {
+            if (refreshDelegate == null) throw new ArgumentNullException(nameof(refreshDelegate));
+
             _impl = new TokenCredentialImpl(refreshDelegate);
         }
 
         public TokenCredential(string token)
-            : this(refreshDelegate: null)
         {
-            Token = token;
+            _impl = new TokenCredentialImpl(token);
         }
 
         ~TokenCredential()
@@ -49,8 +51,7 @@ namespace Azure.Core.Http
                 _impl.Dispose();
             }
         }
-
-        public string Token { get => _impl.Token; set => _impl.Token = value; }
+        
 
         public static async Task<TokenCredential> CreateCredentialAsync(TokenRefreshDelegate refreshDelegate)
         {
@@ -61,11 +62,18 @@ namespace Azure.Core.Http
             return cred;
         }
 
+        public async ValueTask<string> GetTokenAsync(CancellationToken cancellation = default)
+        {
+            return await _impl.GetTokenAsync();
+        }
+
         private class TokenCredentialImpl : ITokenCredential, IDisposable
         {
             TokenRefreshDelegate _refreshDelegate;
             CancellationTokenSource _cancellationSource;
-
+            Task _initTokenTask;
+            bool _initComplete;
+            string _token;
 
             public TokenCredentialImpl(TokenRefreshDelegate refreshDelegate)
             {
@@ -74,11 +82,29 @@ namespace Azure.Core.Http
                     _refreshDelegate = refreshDelegate;
 
                     _cancellationSource = new CancellationTokenSource();
+
+                    _initTokenTask = RefreshTokenAsync();
                 }
             }
 
-            public string Token { get; set; }
-            
+            public TokenCredentialImpl(string token)
+            {
+                _token = token;
+
+                _initComplete = true;
+            }
+                
+
+            public async ValueTask<string> GetTokenAsync(CancellationToken token = default)
+            {
+                if (!_initComplete && _initTokenTask != null)
+                {
+                    await _initTokenTask;
+                }
+
+                return _token;
+            }
+
             // todo full dispose impl
             public void Dispose()
             {
@@ -96,7 +122,9 @@ namespace Azure.Core.Http
                 {
                     var result = await _refreshDelegate(_cancellationSource.Token);
 
-                    Token = result.Token;
+                    _token = result.Token;
+
+                    _initComplete = true;
 
                     // we don't want to await the call because we want the refresh method to return
                     // and then be reinvoked after the specified delay.  
