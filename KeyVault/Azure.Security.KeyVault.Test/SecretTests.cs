@@ -116,16 +116,16 @@ namespace Azure.Security.KeyVault.Test
         }
 
     }
-    
-    public class SecretGetVersionsTests : KeyVaultTestBase, IDisposable
+
+    public class SecretListTests : KeyVaultTestBase, IDisposable
     {
         private const int VersionCount = 50;
         private readonly string SecretName = Guid.NewGuid().ToString("N");
 
         private readonly Dictionary<string, Secret> _versions = new Dictionary<string, Secret>(VersionCount);
         private readonly KeyVaultClient _client;
-        
-        public SecretGetVersionsTests()
+
+        public SecretListTests()
         {
             _client = new KeyVaultClient(VaultUri, TestCredential);
 
@@ -145,19 +145,15 @@ namespace Azure.Security.KeyVault.Test
         }
 
         [Fact]
-        public async Task SecretsPagedCollectionIterateAll()
+        public async Task ListVersionAsyncForEach()
         {
-            PagedCollection<Secret> versions = await _client.Secrets.ListVersionsAsync(SecretName);
-
-            Secret current;
-
             int actVersionCount = 0;
 
-            while((current = await versions.GetNextAsync()) != null)
+            await foreach (var secret in _client.Secrets.ListVersionsAsync(SecretName))
             {
-                Assert.True(_versions.TryGetValue(current.Id, out Secret exp));
-                 
-                AssertSecretsEqual(exp, current);
+                Assert.True(_versions.TryGetValue(secret.Id, out Secret exp));
+
+                AssertSecretsEqual(exp, secret);
 
                 actVersionCount++;
             }
@@ -166,42 +162,33 @@ namespace Azure.Security.KeyVault.Test
         }
 
         [Fact]
-        public async Task SecretsPageCollectionPagedIteration()
+        public async Task ListVersionEnumeratorMoveNext()
         {
-            PagedCollection<Secret> versions = await _client.Secrets.ListVersionsAsync(SecretName);
-
-            Page<Secret> currentPage = versions.CurrentPage;
-
             int actVersionCount = 0;
 
-            while (currentPage != null)
+            var enumerator = _client.Secrets.ListVersionsAsync(SecretName);
+
+            while (await enumerator.MoveNextAsync())
             {
-                for(int i = 0; i < currentPage.Items.Length; i++)
-                {
-                    Assert.True(_versions.TryGetValue(currentPage.Items[i].Id, out Secret exp));
+                Assert.True(_versions.TryGetValue(enumerator.Current.Id, out Secret exp));
 
-                    AssertSecretsEqual(exp, currentPage.Items[i]);
+                AssertSecretsEqual(exp, enumerator.Current);
 
-                    actVersionCount++;
-                }
-                
-                currentPage = await currentPage.GetNextPageAsync();
+                actVersionCount++;
             }
 
             Assert.Equal(VersionCount, actVersionCount);
         }
 
+
         [Fact]
-        public async Task PagedIterationLimitPageSize()
+        public async Task ListVersionByPageAsyncForEach()
         {
-            PagedCollection<Secret> versions = await _client.Secrets.ListVersionsAsync(SecretName, maxPageSize: 5);
-
-            Page<Secret> currentPage = versions.CurrentPage;
-
             int actVersionCount = 0;
 
-            while (currentPage != null)
+            await foreach (Page<Secret> currentPage in _client.Secrets.ListVersionsByPageAsync(SecretName))
             {
+
                 Assert.True(currentPage.Items.Length <= 5);
 
                 for (int i = 0; i < currentPage.Items.Length; i++)
@@ -212,15 +199,37 @@ namespace Azure.Security.KeyVault.Test
 
                     actVersionCount++;
                 }
-
-                currentPage = await currentPage.GetNextPageAsync();
             }
 
             Assert.Equal(VersionCount, actVersionCount);
         }
 
+        [Fact]
+        public async Task ListVersionByPageEnumeratorMoveNext()
+        {
+            int actVersionCount = 0;
+
+            var enumerator = _client.Secrets.ListVersionsByPageAsync(SecretName, maxPageSize: 5);
+
+            while (await enumerator.MoveNextAsync())
+            {
+                Page<Secret> currentPage = enumerator.Current;
+
+                Assert.True(currentPage.Items.Length <= 5);
+
+                for (int i = 0; i < currentPage.Items.Length; i++)
+                {
+                    Assert.True(_versions.TryGetValue(currentPage.Items[i].Id, out Secret exp));
+
+                    AssertSecretsEqual(exp, currentPage.Items[i]);
+
+                    actVersionCount++;
+                }
+            }
+
+            Assert.Equal(VersionCount, actVersionCount);
+        }
     }
-    
 
     public class KeyVaultTestBase
     {

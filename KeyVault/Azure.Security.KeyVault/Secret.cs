@@ -854,45 +854,12 @@ namespace Azure.Security.KeyVault
         }
     }
     
-    public class PagedCollection<T>
-        where T : Model, new()
-    {
-        private int _idx = 0;
-        private Page<T> _currentPage;
-
-        public PagedCollection(Page<T> firstPage)
-        {
-            _currentPage = firstPage;
-        }
-
-        public Page<T> CurrentPage { get => _currentPage; }
-
-        public async Task<T> GetNextAsync()
-        {
-            if (_idx < _currentPage.Items.Length)
-            {
-                return _currentPage.Items[_idx++];
-            }
-
-            if (_currentPage.NextLink == null)
-            {
-                return null;
-            }
-
-            _currentPage = await _currentPage.GetNextPageAsync();
-
-            _idx = 0;
-
-            return await GetNextAsync();
-        }
-    }
 
     public class Page<T>
         where T : Model, new()
     {
         private T[] _items;
         private Uri _nextLink;
-        private CancellationToken _cancellation;
         private Func<Uri, CancellationToken, Task<Response<Page<T>>>> _nextPageCallback;
 
         public Page(Func<Uri, CancellationToken, Task<Response<Page<T>>>> nextPageCallback = null, CancellationToken cancellation = default)
@@ -900,16 +867,92 @@ namespace Azure.Security.KeyVault
             _nextPageCallback = nextPageCallback;
         }
 
-        public async Task<Response<Page<T>>> GetNextPageAsync()
+        public class AsyncItemEnumerator
         {
-            if (_nextLink == null)
+            private Page<T> _currentPage;
+            private int _currentIdx = 0;
+            private Uri _nextLink;
+            private T _current;
+            private CancellationToken _cancellation;
+
+            private Page<T>.AsyncEnumerator _pageEnumerator;
+
+
+            internal AsyncItemEnumerator(Uri firstLink, Func<Uri, CancellationToken, Task<Response<Page<T>>>> getPageAsync = null, CancellationToken cancellation = default)
             {
-               return new Response<Page<T>>(default(Response), (Page<T>)null);
+                _pageEnumerator = new Page<T>.AsyncEnumerator(firstLink, getPageAsync, cancellation);
+
             }
 
-            return await _nextPageCallback(_nextLink, _cancellation);
+            public T Current => _current;
+
+            public async ValueTask<bool> MoveNextAsync()
+            {
+                while(_currentPage == null || _currentIdx >= _currentPage.Items.Length)
+                {
+                    if(!await _pageEnumerator.MoveNextAsync())
+                    {
+                        return false;
+                    }
+
+                    _currentIdx = 0;
+                }
+
+                _current = _currentPage.Items[_currentIdx++];
+
+                return true;
+            }
+
+            public Task DisposeAsync() => default;
+
+            public AsyncItemEnumerator GetAsyncEnumerator(CancellationToken cancellation = default)
+            {
+                _cancellation = cancellation != default(CancellationToken) ? cancellation : _cancellation;
+
+                return this;
+            }
         }
 
+        public class AsyncEnumerator
+        {
+            private Response<Page<T>> _current;
+            private Uri _nextLink;
+            private CancellationToken _cancellation;
+            private Func<Uri, CancellationToken, Task<Response<Page<T>>>> _getPageAsync;
+
+            internal AsyncEnumerator(Uri firstLink, Func<Uri, CancellationToken, Task<Response<Page<T>>>> getPageAsync, CancellationToken cancellation = default)
+            {
+                _nextLink = firstLink;
+                _getPageAsync = getPageAsync;
+                _cancellation = cancellation;
+            }
+
+            public async Task<bool> MoveNextAsync()
+            {
+                if (_nextLink == null)
+                {
+                    return false;
+                }
+
+                _current = await _getPageAsync(_nextLink, _cancellation);
+
+                _nextLink = _current.Result._nextLink;
+
+                return true;
+            }
+
+            public Response<Page<T>> Current => _current;
+
+            public Task DisposeAsync() => default;
+
+            public AsyncEnumerator GetAsyncEnumerator(CancellationToken cancellation = default)
+            {
+                _cancellation = cancellation != default(CancellationToken) ? cancellation : _cancellation;
+
+                return this;
+            }
+
+        }
 
         public ReadOnlySpan<T> Items { get => _items.AsSpan(); }
 

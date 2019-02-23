@@ -154,7 +154,7 @@ namespace Azure.Security.KeyVault
             return await GetAsync(keyUri, cancellation);
         }
 
-        public async Task<Response<PagedCollection<Key>>> ListVersionsAsync(string name, int? maxPageSize = default, CancellationToken cancellation = default)
+        public Page<Key>.AsyncItemEnumerator ListVersionsAsync(string name, int? maxPageSize = default, CancellationToken cancellation = default)
         {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
 
@@ -162,14 +162,10 @@ namespace Azure.Security.KeyVault
 
             Uri firstPageUri = BuildVaultUri(KeysRoute + name + "/versions", query);
 
-            var firstResponse = await GetPageAsync<Key>(firstPageUri, cancellation);
-
-            firstResponse.Deconstruct(out Page<Key> firstPage, out Response rawResponse);
-
-            return new Response<PagedCollection<Key>>(rawResponse, new PagedCollection<Key>(firstPage));
+            return new Page<Key>.AsyncItemEnumerator(firstPageUri, this.GetPageAsync<Key>, cancellation);
         }
 
-        public async Task<Response<PagedCollection<Secret>>> ListAsync(int? maxPageSize = default, CancellationToken cancellation = default)
+        public Page<Key>.AsyncItemEnumerator ListAsync(int? maxPageSize = default, CancellationToken cancellation = default)
         {
             throw new NotImplementedException();
         }
@@ -220,7 +216,7 @@ namespace Azure.Security.KeyVault
             throw new NotImplementedException();
         }
 
-        public async Task<Response<PagedCollection<DeletedKey>>> ListDeletedAsync(int? maxPageSize = default, CancellationToken cancellation = default)
+        public Page<DeletedKey>.AsyncItemEnumerator ListDeletedAsync(int? maxPageSize = default, CancellationToken cancellation = default)
         {
             throw new NotImplementedException();
         }
@@ -348,7 +344,7 @@ namespace Azure.Security.KeyVault
             return await GetAsync(secretUri, cancellation);
         }
 
-        public async Task<Response<PagedCollection<Secret>>> ListVersionsAsync(string name, int? maxPageSize = default, CancellationToken cancellation = default)
+        public Page<Secret>.AsyncItemEnumerator ListVersionsAsync(string name, int? maxPageSize = default, CancellationToken cancellation = default)
         {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
 
@@ -356,16 +352,36 @@ namespace Azure.Security.KeyVault
 
             Uri firstPageUri = BuildVaultUri(SecretRoute + name + "/versions", query);
 
-            var firstResponse = await GetPageAsync<Secret>(firstPageUri, cancellation);
-
-            firstResponse.Deconstruct(out Page<Secret> firstPage, out Response rawResponse);
-
-            return new Response<PagedCollection<Secret>>(rawResponse, new PagedCollection<Secret>(firstPage));
+            return new Page<Secret>.AsyncItemEnumerator(firstPageUri, this.GetPageAsync<Secret>, cancellation);
         }
 
-        public async Task<Response<PagedCollection<Secret>>> ListAsync(int? maxPageSize = default, CancellationToken cancellation = default)
+        public Page<Secret>.AsyncEnumerator ListVersionsByPageAsync(string name, int? maxPageSize = default, CancellationToken cancellation = default)
         {
-            throw new NotImplementedException();
+            if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
+
+            var query = maxPageSize.HasValue ? new KeyValuePair<string, string>[] { new KeyValuePair<string, string>("maxresults", maxPageSize.Value.ToString()) } : null;
+
+            Uri firstPageUri = BuildVaultUri(SecretRoute + name + "/versions", query);
+
+            return new Page<Secret>.AsyncEnumerator(firstPageUri, this.GetPageAsync<Secret>, cancellation);
+        }
+
+        public Page<Secret>.AsyncItemEnumerator ListAsync(int? maxPageSize = default, CancellationToken cancellation = default)
+        {
+            var query = maxPageSize.HasValue ? new KeyValuePair<string, string>[] { new KeyValuePair<string, string>("maxresults", maxPageSize.Value.ToString()) } : null;
+
+            Uri firstPageUri = BuildVaultUri(SecretRoute, query);
+
+            return new Page<Secret>.AsyncItemEnumerator(firstPageUri, this.GetPageAsync<Secret>, cancellation);
+        }
+
+        public Page<Secret>.AsyncEnumerator ListByPageAsync(int? maxPageSize = default, CancellationToken cancellation = default)
+        {
+            var query = maxPageSize.HasValue ? new KeyValuePair<string, string>[] { new KeyValuePair<string, string>("maxresults", maxPageSize.Value.ToString()) } : null;
+
+            Uri firstPageUri = BuildVaultUri(SecretRoute, query);
+
+            return new Page<Secret>.AsyncEnumerator(firstPageUri, this.GetPageAsync<Secret>, cancellation);
         }
 
         public async Task<Response<Secret>> UpdateAsync(string name, string contentType = null, VaultEntityAttributes attributes = null, IDictionary<string, string> tags = null, CancellationToken cancellation = default)
@@ -497,7 +513,7 @@ namespace Azure.Security.KeyVault
             throw new NotImplementedException();
         }
 
-        public async Task<Response<PagedCollection<DeletedSecret>>> ListDeletedAsync(int? maxPageSize = default, CancellationToken cancellation = default)
+        public Page<Secret>.AsyncEnumerator ListDeletedAsync(int? maxPageSize = default, CancellationToken cancellation = default)
         {
             throw new NotImplementedException();
         }
