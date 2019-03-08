@@ -152,6 +152,7 @@ namespace Azure.Core.Http.Pipeline
                     case PipelineMethod.Post: return HttpMethod.Post;
                     case PipelineMethod.Put: return HttpMethod.Put;
                     case PipelineMethod.Delete: return HttpMethod.Delete;
+                    case PipelineMethod.Patch: return new HttpMethod("PATCH");
 
                     default: throw new NotImplementedException();
                 }

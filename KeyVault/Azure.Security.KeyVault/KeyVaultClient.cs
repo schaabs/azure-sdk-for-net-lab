@@ -8,202 +8,208 @@ using System.Text;
 
 namespace Azure.Security.KeyVault
 { 
-    public sealed class KeyClient : KeyVaultClientBase
+    public sealed class KeyClient
     {
         private const string KeysRoute = "/keys/";
 
         public KeyClient(Uri vaultUri, ITokenCredentialProvider credentialProvider, PipelineOptions options = null)
-            : base(vaultUri, credentialProvider, options ?? new PipelineOptions())
         {
 
         }
 
         public KeyClient(Uri vaultUri, ITokenCredential credentials, PipelineOptions options = null)
-            : base(vaultUri, credentials, options ?? new PipelineOptions())
         {
 
         }
 
-        public async Task<Response<Key>> ImportAsync(string name, Key key, bool? hsm = default, CancellationToken cancellation = default)
+        public async Task<Response<Key>> ImportAsync(string name, Key key, bool? hardwareProtected = default, CancellationToken cancellation = default)
         {
-            if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
-            if (key == null) throw new ArgumentNullException(nameof(key));
+            throw new NotImplementedException();
+            //if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
+            //if (key == null) throw new ArgumentNullException(nameof(key));
 
-            var keysUri = BuildVaultUri(KeysRoute + name);
+            //var keysUri = BuildVaultUri(KeysRoute + name);
 
-            using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
-            {
-                message.SetRequestLine(PipelineMethod.Put, keysUri);
-                message.AddHeader("Host", keysUri.Host);
-                message.AddHeader("Accept", "application/json");
-                message.AddHeader("Content-Type", "application/json; charset=utf-8");
-                message.AddHeader("Authorization", "Bearer " + _credentials.Token);
+            //using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
+            //{
+            //    message.SetRequestLine(PipelineMethod.Put, keysUri);
+            //    message.AddHeader("Host", keysUri.Host);
+            //    message.AddHeader("Accept", "application/json");
+            //    message.AddHeader("Content-Type", "application/json; charset=utf-8");
+            //    message.AddHeader("Authorization", "Bearer " + _credentials.Token);
 
-                var keyImportParameters = new KeyImportParameters()
-                {
-                    Key = key,
-                    Hsm = hsm
-                };
+            //    var keyImportParameters = new KeyImportParameters()
+            //    {
+            //        Key = key,
+            //        Hsm = hsm
+            //    };
 
-                var content = keyImportParameters.Serialize();
+            //    var content = keyImportParameters.Serialize();
 
-                // TODO: remove debugging code
-                var strContent = Encoding.UTF8.GetString(content.ToArray());
+            //    // TODO: remove debugging code
+            //    var strContent = Encoding.UTF8.GetString(content.ToArray());
 
-                message.SetContent(PipelineContent.Create(content));
+            //    message.SetContent(PipelineContent.Create(content));
 
-                await _pipeline.ProcessAsync(message);
+            //    await _pipeline.ProcessAsync(message);
 
-                Response response = message.Response;
+            //    Response response = message.Response;
 
-                if (response.Status != 200)
-                {
-                    throw new ResponseFailedException(response);
-                }
-                
-                key.Deserialize(response.ContentStream);
+            //    if (response.Status != 200)
+            //    {
+            //        throw new ResponseFailedException(response);
+            //    }
 
-                return new Response<Key>(response, key);
-            }
+            //    key.Deserialize(response.ContentStream);
+
+            //    return new Response<Key>(response, key);
+            //}
         }
 
-        public async Task<Response<Key>> CreateAsync(string name, string kty, string crv = null, int? keySize = null, IList<string> keyOps = null, VaultEntityAttributes attributes = null, IDictionary<string, string> tags = null, CancellationToken cancellation = default)
+        public async Task<Response<Key>> CreateAsync(string name, string kty, string crv = null, int? keySize = null, bool? enabled = null, DateTime? notBefore = null, DateTime? expires = null, IList<string> keyOps = null, IDictionary<string, string> tags = null, CancellationToken cancellation = default)
         {
-            if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
-            if (string.IsNullOrEmpty(kty)) throw new ArgumentNullException(nameof(kty));
+            throw new NotImplementedException();
+            //if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
+            //if (string.IsNullOrEmpty(kty)) throw new ArgumentNullException(nameof(kty));
 
-            var keysUri = BuildVaultUri(KeysRoute + name);
+            //var keysUri = BuildVaultUri(KeysRoute + name);
 
-            using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
-            {
-                message.SetRequestLine(PipelineMethod.Put, keysUri);
-                message.AddHeader("Host", keysUri.Host);
-                message.AddHeader("Accept", "application/json");
-                message.AddHeader("Content-Type", "application/json; charset=utf-8");
-                message.AddHeader("Authorization", "Bearer " + _credentials.Token);
+            //using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
+            //{
+            //    message.SetRequestLine(PipelineMethod.Put, keysUri);
+            //    message.AddHeader("Host", keysUri.Host);
+            //    message.AddHeader("Accept", "application/json");
+            //    message.AddHeader("Content-Type", "application/json; charset=utf-8");
+            //    message.AddHeader("Authorization", "Bearer " + _credentials.Token);
 
-                var keyCreateParams = new KeyCreateParameters()
-                {
-                    Kty = kty,
-                    Crv = crv,
-                    KeySize = keySize,
-                    KeyOps = keyOps,
-                    Attributes = attributes,
-                    Tags = tags
-                };
+            //    var keyCreateParams = new KeyCreateParameters()
+            //    {
+            //        Kty = kty,
+            //        Crv = crv,
+            //        KeySize = keySize,
+            //        KeyOps = keyOps,
+            //        Attributes = attributes,
+            //        Tags = tags
+            //    };
 
-                var content = keyCreateParams.Serialize();
+            //    var content = keyCreateParams.Serialize();
 
-                // TODO: remove debugging code
-                var strContent = Encoding.UTF8.GetString(content.ToArray());
+            //    // TODO: remove debugging code
+            //    var strContent = Encoding.UTF8.GetString(content.ToArray());
 
-                message.SetContent(PipelineContent.Create(content));
+            //    message.SetContent(PipelineContent.Create(content));
 
-                await _pipeline.ProcessAsync(message);
+            //    await _pipeline.ProcessAsync(message);
 
-                Response response = message.Response;
+            //    Response response = message.Response;
 
-                if (response.Status != 200)
-                {
-                    throw new ResponseFailedException(response);
-                }
+            //    if (response.Status != 200)
+            //    {
+            //        throw new ResponseFailedException(response);
+            //    }
 
-                var key = new Key();
+            //    var key = new Key();
 
-                key.Deserialize(response.ContentStream);
+            //    key.Deserialize(response.ContentStream);
 
-                return new Response<Key>(response, key);
-            }
+            //    return new Response<Key>(response, key);
+            //}
         }
         
         public async Task<Response<Key>> GetAsync(Uri keyUri, CancellationToken cancellation = default)
         {
-            if (keyUri == null) throw new ArgumentNullException(nameof(keyUri));
+            throw new NotImplementedException();
 
-            using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
-            {
-                message.SetRequestLine(PipelineMethod.Get, keyUri);
-                message.AddHeader("Host", keyUri.Host);
-                message.AddHeader("Accept", "application/json");
-                message.AddHeader("Content-Type", "application/json; charset=utf-8");
-                message.AddHeader("Authorization", "Bearer " + _credentials.Token);
+            //if (keyUri == null) throw new ArgumentNullException(nameof(keyUri));
 
-                await _pipeline.ProcessAsync(message);
+            //using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
+            //{
+            //    message.SetRequestLine(PipelineMethod.Get, keyUri);
+            //    message.AddHeader("Host", keyUri.Host);
+            //    message.AddHeader("Accept", "application/json");
+            //    message.AddHeader("Content-Type", "application/json; charset=utf-8");
+            //    message.AddHeader("Authorization", "Bearer " + _credentials.Token);
 
-                Response response = message.Response;
+            //    await _pipeline.ProcessAsync(message);
 
-                if (response.Status != 200)
-                {
-                    throw new ResponseFailedException(response);
-                }
+            //    Response response = message.Response;
 
-                var key = new Key();
+            //    if (response.Status != 200)
+            //    {
+            //        throw new ResponseFailedException(response);
+            //    }
 
-                key.Deserialize(response.ContentStream);
+            //    var key = new Key();
 
-                return new Response<Key>(response, key);
-            }
+            //    key.Deserialize(response.ContentStream);
+
+            //    return new Response<Key>(response, key);
+            //}
         }
 
         public async Task<Response<Key>> GetAsync(string name, string version = null, CancellationToken cancellation = default)
         {
-            if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
+            throw new NotImplementedException();
+            //if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
 
-            Uri keyUri = BuildVaultUri(KeysRoute + name + "/" + (version ?? string.Empty));
+            //Uri keyUri = BuildVaultUri(KeysRoute + name + "/" + (version ?? string.Empty));
 
-            return await GetAsync(keyUri, cancellation);
+            //return await GetAsync(keyUri, cancellation);
         }
 
-        public Page<Key>.AsyncItemEnumerator ListVersionsAsync(string name, int? maxPageSize = default, CancellationToken cancellation = default)
+        public AsyncEnumerator<Key> ListVersionsAsync(string name, int? maxPageSize = default, CancellationToken cancellation = default)
         {
-            if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
+            throw new NotImplementedException();
+            //if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
 
-            var query = maxPageSize.HasValue ? new KeyValuePair<string, string>[] { new KeyValuePair<string, string>("maxresults", maxPageSize.Value.ToString()) } : null;
+            //var query = maxPageSize.HasValue ? new KeyValuePair<string, string>[] { new KeyValuePair<string, string>("maxresults", maxPageSize.Value.ToString()) } : null;
 
-            Uri firstPageUri = BuildVaultUri(KeysRoute + name + "/versions", query);
+            //Uri firstPageUri = BuildVaultUri(KeysRoute + name + "/versions", query);
 
-            return new Page<Key>.AsyncItemEnumerator(firstPageUri, this.GetPageAsync<Key>, cancellation);
+            //return new Page<Key>.AsyncItemEnumerator(firstPageUri, this.GetPageAsync<Key>, cancellation);
         }
 
-        public Page<Key>.AsyncItemEnumerator ListAsync(int? maxPageSize = default, CancellationToken cancellation = default)
+        public AsyncEnumerator<Key> ListAsync(int? maxPageSize = default, CancellationToken cancellation = default)
         {
             throw new NotImplementedException();
         }
 
-        public async Task<Response<Key>> UpdateAsync(string name, IList<string> keyOps = default, VaultEntityAttributes attributes = null, IDictionary<string, string> tags = null, CancellationToken cancellation = default)
+        // TODO: add in attribute values
+        public async Task<Response<Key>> UpdateAsync(string name, IList<string> keyOps = default, IDictionary<string, string> tags = null, CancellationToken cancellation = default)
         {
             throw new NotImplementedException();
         }
         
         public async Task<Response<DeletedKey>> DeleteAsync(string name, CancellationToken cancellation = default)
         {
-            if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
+            throw new NotImplementedException();
+            //if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
 
-            var secretUri = BuildVaultUri(KeysRoute + name);
+            //var secretUri = BuildVaultUri(KeysRoute + name);
 
-            using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
-            {
-                message.SetRequestLine(PipelineMethod.Delete, secretUri);
-                message.AddHeader("Host", secretUri.Host);
-                message.AddHeader("Accept", "application/json");
-                message.AddHeader("Content-Type", "application/json; charset=utf-8");
-                message.AddHeader("Authorization", "Bearer " + _credentials.Token);
+            //using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
+            //{
+            //    message.SetRequestLine(PipelineMethod.Delete, secretUri);
+            //    message.AddHeader("Host", secretUri.Host);
+            //    message.AddHeader("Accept", "application/json");
+            //    message.AddHeader("Content-Type", "application/json; charset=utf-8");
+            //    message.AddHeader("Authorization", "Bearer " + _credentials.Token);
 
-                await _pipeline.ProcessAsync(message);
+            //    await _pipeline.ProcessAsync(message);
 
-                Response response = message.Response;
+            //    Response response = message.Response;
 
-                if (response.Status != 200)
-                {
-                    throw new ResponseFailedException(response);
-                }
+            //    if (response.Status != 200)
+            //    {
+            //        throw new ResponseFailedException(response);
+            //    }
 
-                DeletedKey deleted = new DeletedKey();
+            //    DeletedKey deleted = new DeletedKey();
 
-                deleted.Deserialize(response.ContentStream);
+            //    deleted.Deserialize(response.ContentStream);
 
-                return new Response<DeletedKey>(response, deleted);
-            }
+            //    return new Response<DeletedKey>(response, deleted);
+            //}
         }
 
         public async Task<Response<DeletedKey>> GetDeletedAsync(Uri recoveryId, CancellationToken cancellation = default)
@@ -216,7 +222,7 @@ namespace Azure.Security.KeyVault
             throw new NotImplementedException();
         }
 
-        public Page<DeletedKey>.AsyncItemEnumerator ListDeletedAsync(int? maxPageSize = default, CancellationToken cancellation = default)
+        public AsyncEnumerator<DeletedKey> ListDeletedAsync(int? maxPageSize = default, CancellationToken cancellation = default)
         {
             throw new NotImplementedException();
         }
@@ -290,240 +296,113 @@ namespace Azure.Security.KeyVault
     }
 
 
-    public sealed class SecretClient : KeyVaultClientBase
+    public sealed class SecretClient
     {
+
+        private KeyVaultClientPipeline _pipeline;
+
         private const string SecretRoute = "/secrets/";
 
         public SecretClient(Uri vaultUri, ITokenCredentialProvider credentialProvider, PipelineOptions options = null)
-            : base(vaultUri, credentialProvider, options ?? new PipelineOptions())
         {
-
+            _pipeline = new KeyVaultClientPipeline(vaultUri, credentialProvider, options ?? new PipelineOptions());
         }
 
-        public SecretClient(Uri vaultUri, ITokenCredential credentials, PipelineOptions options = null)
-            : base(vaultUri, credentials, options ?? new PipelineOptions())
+        public SecretClient(Uri vaultUri, ITokenCredential credential, PipelineOptions options = null)
         {
-
-        }
-
-        public async Task<Response<Secret>> GetAsync(Uri secretUri, CancellationToken cancellation = default)
-        {
-            if (secretUri == null) throw new NullReferenceException(nameof(secretUri));
-
-            using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
-            {
-                message.SetRequestLine(PipelineMethod.Get, secretUri);
-                message.AddHeader("Host", secretUri.Host);
-                message.AddHeader("Accept", "application/json");
-                message.AddHeader("Content-Type", "application/json; charset=utf-8");
-                message.AddHeader("Authorization", "Bearer " + _credentials.Token);
-
-                await _pipeline.ProcessAsync(message);
-
-                Response response = message.Response;
-
-                if (response.Status != 200)
-                {
-                    throw new ResponseFailedException(response);
-                }
-
-                var secret = new Secret();
-
-                secret.Deserialize(response.ContentStream);
-
-                return new Response<Secret>(response, secret);
-            }
+            _pipeline = new KeyVaultClientPipeline(vaultUri, credential, options ?? new PipelineOptions());
         }
 
         public async Task<Response<Secret>> GetAsync(string name, string version = null, CancellationToken cancellation = default)
         {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
 
-            Uri secretUri = BuildVaultUri(SecretRoute + name + "/" + (version ?? string.Empty));
+            Uri secretUri = BuildSecretUri(name, version);
 
-            return await GetAsync(secretUri, cancellation);
+            return await _pipeline.RequestAsync<Secret>(PipelineMethod.Get, secretUri, cancellation);
         }
 
-        public Page<Secret>.AsyncItemEnumerator ListVersionsAsync(string name, int? maxPageSize = default, CancellationToken cancellation = default)
+        public AsyncEnumerator<SecretAttributes> GetAllVersionsAsync(string name, int? maxPageSize = default, CancellationToken cancellation = default)
         {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
 
             var query = maxPageSize.HasValue ? new KeyValuePair<string, string>[] { new KeyValuePair<string, string>("maxresults", maxPageSize.Value.ToString()) } : null;
 
-            Uri firstPageUri = BuildVaultUri(SecretRoute + name + "/versions", query);
+            Uri firstPageUri = BuildSecretUri(query, name, "versions");
 
-            return new Page<Secret>.AsyncItemEnumerator(firstPageUri, this.GetPageAsync<Secret>, cancellation);
+            return new AsyncEnumerator<SecretAttributes>(firstPageUri, _pipeline.GetPageAsync<SecretAttributes>, cancellation);
         }
 
-        public Page<Secret>.AsyncEnumerator ListVersionsByPageAsync(string name, int? maxPageSize = default, CancellationToken cancellation = default)
-        {
-            if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
-
-            var query = maxPageSize.HasValue ? new KeyValuePair<string, string>[] { new KeyValuePair<string, string>("maxresults", maxPageSize.Value.ToString()) } : null;
-
-            Uri firstPageUri = BuildVaultUri(SecretRoute + name + "/versions", query);
-
-            return new Page<Secret>.AsyncEnumerator(firstPageUri, this.GetPageAsync<Secret>, cancellation);
-        }
-
-        public Page<Secret>.AsyncItemEnumerator ListAsync(int? maxPageSize = default, CancellationToken cancellation = default)
+        public AsyncEnumerator<SecretAttributes> GetAllAsync(int? maxPageSize = default, CancellationToken cancellation = default)
         {
             var query = maxPageSize.HasValue ? new KeyValuePair<string, string>[] { new KeyValuePair<string, string>("maxresults", maxPageSize.Value.ToString()) } : null;
 
-            Uri firstPageUri = BuildVaultUri(SecretRoute, query);
+            Uri firstPageUri = BuildSecretUri(query);
 
-            return new Page<Secret>.AsyncItemEnumerator(firstPageUri, this.GetPageAsync<Secret>, cancellation);
+            return new AsyncEnumerator<SecretAttributes>(firstPageUri, _pipeline.GetPageAsync<SecretAttributes>, cancellation);
         }
 
-        public Page<Secret>.AsyncEnumerator ListByPageAsync(int? maxPageSize = default, CancellationToken cancellation = default)
+        public async Task<Response<SecretAttributes>> UpdateAsync(SecretAttributes secret, CancellationToken cancellation = default)
         {
-            var query = maxPageSize.HasValue ? new KeyValuePair<string, string>[] { new KeyValuePair<string, string>("maxresults", maxPageSize.Value.ToString()) } : null;
+            if (secret?.Id == null) throw new ArgumentNullException($"{nameof(secret)}.{nameof(secret.Id)}");
 
-            Uri firstPageUri = BuildVaultUri(SecretRoute, query);
+            var secretUri = new UriBuilder(secret.Id);
 
-            return new Page<Secret>.AsyncEnumerator(firstPageUri, this.GetPageAsync<Secret>, cancellation);
+            secretUri.AppendQuery("api-version", KeyVaultClientPipeline.ApiVersion);
+
+            return await _pipeline.RequestAsync<SecretAttributes, SecretAttributes>(PipelineMethod.Patch, secretUri.Uri, secret, cancellation);
         }
 
-        public async Task<Response<Secret>> UpdateAsync(string name, string contentType = null, VaultEntityAttributes attributes = null, IDictionary<string, string> tags = null, CancellationToken cancellation = default)
+        public async Task<Response<Secret>> SetAsync(Secret secret, CancellationToken cancellation = default)
         {
-            if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
-            
-            var secretUri = BuildVaultUri(SecretRoute + name);
+            if (secret == null) throw new ArgumentNullException(nameof(secret));
 
-            using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
-            {
-                message.SetRequestLine(PipelineMethod.Patch, secretUri);
-                message.AddHeader("Host", secretUri.Host);
-                message.AddHeader("Accept", "application/json");
-                message.AddHeader("Content-Type", "application/json; charset=utf-8");
-                message.AddHeader("Authorization", "Bearer " + _credentials.Token);
+            if (secret.Name == null) throw new ArgumentNullException($"{nameof(secret)}.{nameof(secret.Name)}");
 
-                var secret = new Secret()
-                {
-                    ContentType = contentType,
-                    Attributes = attributes,
-                    Tags = tags
-                };
+            if (secret.Value == null) throw new ArgumentNullException($"{nameof(secret)}.{nameof(secret.Value)}");
 
-                var content = secret.Serialize();
+            var secretUri = BuildSecretUri(secret.Name);
 
-                // TODO: remove debugging code
-                var strContent = Encoding.UTF8.GetString(content.ToArray());
-
-                message.SetContent(PipelineContent.Create(content));
-
-                await _pipeline.ProcessAsync(message);
-
-                Response response = message.Response;
-
-                if (response.Status != 200)
-                {
-                    throw new ResponseFailedException(response);
-                }
-
-                secret.Deserialize(response.ContentStream);
-
-                return new Response<Secret>(response, secret);
-            }
+            return await _pipeline.RequestAsync<Secret, Secret>(PipelineMethod.Put, secretUri, secret, cancellation);
         }
 
-        public async Task<Response<Secret>> SetAsync(string name, string value, string contentType = null, VaultEntityAttributes attributes = null, IDictionary<string, string> tags = null, CancellationToken cancellation = default)
+        public async Task<Response<Secret>> SetAsync(string name, string value, CancellationToken cancellation = default)
         {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
             if (string.IsNullOrEmpty(value)) throw new ArgumentNullException(nameof(value));
 
-            var secretUri = BuildVaultUri(SecretRoute + name);
-
-            using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
-            {
-                message.SetRequestLine(PipelineMethod.Put, secretUri);
-                message.AddHeader("Host", secretUri.Host);
-                message.AddHeader("Accept", "application/json");
-                message.AddHeader("Content-Type", "application/json; charset=utf-8");
-                message.AddHeader("Authorization", "Bearer " + _credentials.Token);
-
-                var secret = new Secret()
-                {
-                    Value = value,
-                    ContentType = contentType,
-                    Attributes = attributes,
-                    Tags = tags
-                };
-
-                var content = secret.Serialize();
-
-                // TODO: remove debugging code
-                var strContent = Encoding.UTF8.GetString(content.ToArray());
-
-                message.SetContent(PipelineContent.Create(content));
-
-                await _pipeline.ProcessAsync(message);
-
-                Response response = message.Response;
-
-                if (response.Status != 200)
-                {
-                    throw new ResponseFailedException(response);
-                }
-
-                secret.Deserialize(response.ContentStream);
-
-                return new Response<Secret>(response, secret);
-            }
+            return await SetAsync(new Secret(name, value), cancellation);
         }
         
         public async Task<Response<DeletedSecret>> DeleteAsync(string name, CancellationToken cancellation = default)
         {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
 
-            var secretUri = BuildVaultUri(SecretRoute + name);
+            var secretUri = BuildSecretUri(name);
 
-            using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
-            {
-                message.SetRequestLine(PipelineMethod.Delete, secretUri);
-                message.AddHeader("Host", secretUri.Host);
-                message.AddHeader("Accept", "application/json");
-                message.AddHeader("Content-Type", "application/json; charset=utf-8");
-                message.AddHeader("Authorization", "Bearer " + _credentials.Token);
-
-                await _pipeline.ProcessAsync(message);
-
-                Response response = message.Response;
-
-                if (response.Status != 200)
-                {
-                    throw new ResponseFailedException(response);
-                }
-
-                DeletedSecret deleted = new DeletedSecret();
-
-                deleted.Deserialize(response.ContentStream);
-
-                return new Response<DeletedSecret>(response, deleted);
-            }
-        }
-
-        public async Task<Response<DeletedSecret>> GetDeletedAsync(Uri recoveryId, CancellationToken cancellation = default)
-        {
-            throw new NotImplementedException();
+            return await _pipeline.RequestAsync<DeletedSecret>(PipelineMethod.Delete, secretUri, cancellation);
         }
 
         public async Task<Response<DeletedSecret>> GetDeletedAsync(string name, CancellationToken cancellation = default)
         {
-            throw new NotImplementedException();
+            if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
+
+            var secretUri = BuildSecretUri(name);
+
+            return await _pipeline.RequestAsync<DeletedSecret>(PipelineMethod.Get, secretUri, cancellation);
         }
 
-        public Page<Secret>.AsyncEnumerator ListDeletedAsync(int? maxPageSize = default, CancellationToken cancellation = default)
+        public AsyncEnumerator<DeletedSecret> GetAllDeletedAsync(int? maxPageSize = default, CancellationToken cancellation = default)
         {
             throw new NotImplementedException();
         }
 
-        public async Task<Response<Secret>> RecoverAsync(Uri recoveryId, CancellationToken cancellation = default)
+        public async Task<Response<Secret>> RecoverDeletedAsync(string name, CancellationToken cancellation = default)
         {
             throw new NotImplementedException();
         }
 
-        public async Task<Response<Secret>> RecoverAsync(string name, CancellationToken cancellation = default)
+        public async Task<Response> PurgeDeletedAsync(string name, CancellationToken cancellation = default)
         {
             throw new NotImplementedException();
         }
@@ -533,94 +412,54 @@ namespace Azure.Security.KeyVault
         {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException(nameof(name));
 
-            var secretUri = BuildVaultUri(SecretRoute + name + "/backup");
+            var backupUri = BuildSecretUri(name, "/backup");
 
-            using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
-            {
-                message.SetRequestLine(PipelineMethod.Post, secretUri);
-                message.AddHeader("Host", secretUri.Host);
-                message.AddHeader("Accept", "application/json");
-                message.AddHeader("Content-Type", "application/json; charset=utf-8");
-                message.AddHeader("Authorization", "Bearer " + _credentials.Token);
+            var backupResponse = await _pipeline.RequestAsync<VaultBackup>(PipelineMethod.Post, backupUri, cancellation);
 
-                await _pipeline.ProcessAsync(message);
+            backupResponse.Deconstruct(out VaultBackup backup, out Response response);
 
-                Response response = message.Response;
-
-                if (response.Status != 200)
-                {
-                    throw new ResponseFailedException(response);
-                }
-
-                VaultBackup backup = new VaultBackup();
-
-                backup.Deserialize(response.ContentStream);
-
-                return new Response<byte[]>(response, backup.Value);
-            }
+            return new Response<byte[]>(response, backup.Value);
         }
 
-        // todo: could this be made better by using Stream or Span vs []?
         public async Task<Response<Secret>> RestoreAsync(byte[] backup, CancellationToken cancellation = default)
         {
             if (backup == null) throw new ArgumentNullException(nameof(backup));
 
-            var secretUri = BuildVaultUri(SecretRoute + "/restore");
+            var secretUri = BuildSecretUri("restore");
 
-            using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
-            {
-                message.SetRequestLine(PipelineMethod.Post, secretUri);
-                message.AddHeader("Host", secretUri.Host);
-                message.AddHeader("Accept", "application/json");
-                message.AddHeader("Content-Type", "application/json; charset=utf-8");
-                message.AddHeader("Authorization", "Bearer " + _credentials.Token);
+            return await _pipeline.RequestAsync<VaultBackup, Secret>(PipelineMethod.Post, secretUri, new VaultBackup { Value = backup }, cancellation);
+        }
 
-                VaultBackup model = new VaultBackup() { Value = backup };
+        private Uri BuildSecretUri(params string[] path)
+        {
+            return BuildSecretUri((IEnumerable<KeyValuePair<string, string>>)null, path);
 
-                var content = model.Serialize();
+        }
 
-                // TODO: remove debugging code
-                var strContent = Encoding.UTF8.GetString(content.ToArray());
-
-                message.SetContent(PipelineContent.Create(content));
-
-                await _pipeline.ProcessAsync(message);
-
-                Response response = message.Response;
-
-                if (response.Status != 200)
-                {
-                    throw new ResponseFailedException(response);
-                }
-
-                var restored = new Secret();
-
-                restored.Deserialize(response.ContentStream);
-
-                return new Response<Secret>(response, restored);
-            }
+        private Uri BuildSecretUri(IEnumerable<KeyValuePair<string, string>> query, params string[] path)
+        {
+            return _pipeline.BuildVaultUri(SecretRoute + string.Join("/", path), query);
         }
     }
 
-    public abstract class KeyVaultClientBase
+    internal class KeyVaultClientPipeline
     {
-        protected readonly Uri _vaultUri;
-        protected const string ApiVersion = "7.0";
-        protected const string SdkName = "Azure.Security.KeyVault";
+        internal readonly Uri _vaultUri;
+        internal const string ApiVersion = "7.0";
+        internal const string SdkName = "Azure.Security.KeyVault";
+        internal const string SdkVersion = "1.0.0";
 
-        protected const string SdkVersion = "1.0.0";
-
-        protected readonly ITokenCredential _credentials;
-        protected readonly PipelineOptions _options;
-        protected readonly HttpPipeline _pipeline;
-        protected KeyVaultClientBase(Uri vaultUri, ITokenCredentialProvider credentialProvider, PipelineOptions options)
+        internal readonly ITokenCredential _credentials;
+        internal readonly PipelineOptions _options;
+        internal readonly HttpPipeline _pipeline;
+        internal KeyVaultClientPipeline(Uri vaultUri, ITokenCredentialProvider credentialProvider, PipelineOptions options)
         {
             _vaultUri = vaultUri ?? throw new ArgumentNullException(nameof(vaultUri));
             _credentials = credentialProvider != null ? credentialProvider.GetCredentialAsync(new string[] { "https://vault.azure.net/.Default" }).GetAwaiter().GetResult() : throw new ArgumentNullException(nameof(credentialProvider));
             _options = options ?? throw new ArgumentNullException(nameof(options));
             _pipeline = HttpPipeline.Create(_options, SdkName, SdkVersion);
         }
-        protected KeyVaultClientBase(Uri vaultUri, ITokenCredential credentials, PipelineOptions options)
+        internal KeyVaultClientPipeline(Uri vaultUri, ITokenCredential credentials, PipelineOptions options)
         {
             _vaultUri = vaultUri ?? throw new ArgumentNullException(nameof(vaultUri));
             _credentials = credentials ?? throw new ArgumentNullException(nameof(credentials));
@@ -628,14 +467,67 @@ namespace Azure.Security.KeyVault
             _pipeline = HttpPipeline.Create(_options, SdkName, SdkVersion);
         }
 
-        protected async Task<Response<Page<T>>> GetPageAsync<T>(Uri pageUri, CancellationToken cancellation)
+        internal async Task<Response<T>> RequestAsync<T>(PipelineMethod method, Uri requestUri, CancellationToken cancellation)
             where T : Model, new()
         {
+            using (HttpMessage request = CreateRequest(method, requestUri, cancellation))
+            {
+                return await ProcessRequestAsync<T>(request);
+            }
+        }
 
+        internal async Task<Response<TResponse>> RequestAsync<TRequest, TResponse>(PipelineMethod method, Uri requestUri, TRequest body, CancellationToken cancellation)
+            where TRequest : Model
+            where TResponse : Model, new()
+        {
+            using (HttpMessage request = CreateRequest(method, requestUri, cancellation))
+            {
+                var content = body.Serialize();
+
+                request.SetContent(PipelineContent.Create(content));
+
+                return await ProcessRequestAsync<TResponse>(request);
+            }
+        }
+
+        private async Task<Response<T>> ProcessRequestAsync<T>(HttpMessage request)
+            where T : Model, new()
+        {
+            await _pipeline.ProcessAsync(request);
+
+            Response response = request.Response;
+
+            if (response.Status != 200)
+            {
+                throw new ResponseFailedException(response);
+            }
+
+            var result = new T();
+
+            result.Deserialize(response.ContentStream);
+
+            return new Response<T>(response, result);
+        }
+
+        private HttpMessage CreateRequest(PipelineMethod method, Uri requestUri, CancellationToken cancellation)
+        {
+            HttpMessage message = _pipeline.CreateMessage(_options, cancellation);
+            message.SetRequestLine(method, requestUri);
+            message.AddHeader("Host", requestUri.Host);
+            message.AddHeader("Accept", "application/json");
+            message.AddHeader("Content-Type", "application/json; charset=utf-8");
+            message.AddHeader("Authorization", "Bearer " + _credentials.Token);
+            return message;
+        }
+
+
+        internal async Task<Response<Page<T>>> GetPageAsync<T>(Uri pageUri, CancellationToken cancellation)
+            where T : Model, new()
+        {
             using (HttpMessage message = _pipeline.CreateMessage(_options, cancellation))
             {
                 message.SetRequestLine(PipelineMethod.Get, pageUri);
-                message.AddHeader("Host", _vaultUri.Host);
+                message.AddHeader("Host", pageUri.Host);
                 message.AddHeader("Accept", "application/json");
                 message.AddHeader("Content-Type", "application/json; charset=utf-8");
                 message.AddHeader("Authorization", "Bearer " + _credentials.Token);
@@ -657,7 +549,7 @@ namespace Azure.Security.KeyVault
             }
         }
 
-        protected Uri BuildVaultUri(string path, params KeyValuePair<string, string>[] query)
+        internal Uri BuildVaultUri(string path, IEnumerable<KeyValuePair<string, string>> query)
         {
             var uriBuilder = new UriBuilder(_vaultUri);
 
@@ -667,9 +559,9 @@ namespace Azure.Security.KeyVault
 
             if (query != null)
             {
-                for(int i = 0; i < query.Length; i++)
-                {
-                    uriBuilder.AppendQuery(query[i].Key, query[i].Value);
+                foreach (var kvp in query)
+                { 
+                    uriBuilder.AppendQuery(kvp.Key, kvp.Value);
                 }
             }
 
@@ -677,21 +569,23 @@ namespace Azure.Security.KeyVault
         }
     }
 
-    public class KeyVaultClient : KeyVaultClientBase
+    public class KeyVaultClient
     {
+        private KeyVaultClientPipeline _pipeline;
+
         public KeyVaultClient(Uri vaultUri, ITokenCredentialProvider credentialProvider, PipelineOptions options = null)
-            : base(vaultUri, credentialProvider, options ?? new PipelineOptions())
         {
             Secrets = new SecretClient(vaultUri, credentialProvider, options);
         }
 
         public KeyVaultClient(Uri vaultUri, ITokenCredential credentials, PipelineOptions options = null)
-            : base(vaultUri, credentials, options ?? new PipelineOptions())
         {
             Secrets = new SecretClient(vaultUri, credentials, options);
         }
 
         public SecretClient Secrets { get; private set; }
+
+        public KeyClient Keys { get; private set; }
         
     }
 }

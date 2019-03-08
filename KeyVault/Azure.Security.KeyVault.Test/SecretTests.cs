@@ -30,9 +30,6 @@ namespace Azure.Security.KeyVault.Test
 
             DeletedSecret deleteResult = await client.Secrets.DeleteAsync("CrudBasic");
 
-            // remove the value which is not set on the deleted response
-            setResult.Value = null;
-
             AssertSecretsEqual(setResult, deleteResult);
         }
 
@@ -45,14 +42,19 @@ namespace Azure.Security.KeyVault.Test
 
             Secret getResult = await client.Secrets.GetAsync("CrudBasic");
 
+            Assert.Equal("CrudBasic", setResult.Name);
+            Assert.Equal(VaultUri, setResult.Vault);
+
             AssertSecretsEqual(setResult, getResult);
+
+            getResult.Enabled = false;
+            SecretAttributes updateResult = await client.Secrets.UpdateAsync(getResult);
+
+            AssertSecretsEqual(getResult, updateResult);
 
             DeletedSecret deleteResult = await client.Secrets.DeleteAsync("CrudBasic");
 
-            // remove the value which is not set on the deleted response
-            setResult.Value = null;
-
-            AssertSecretsEqual(setResult, deleteResult);
+            AssertSecretsEqual(updateResult, deleteResult);
         }
 
         [Fact]
@@ -60,14 +62,15 @@ namespace Azure.Security.KeyVault.Test
         {
             var client = new KeyVaultClient(VaultUri, TestCredential);
 
-            var attr = new VaultEntityAttributes() { NotBefore = UtcNowMs() + TimeSpan.FromDays(1), Expires = UtcNowMs() + TimeSpan.FromDays(90) };
+            var secret = new Secret("CrudWithExtendedProps", "CrudWithExtendedPropsValue1")
+            {
+                ContentType = "password",
+                NotBefore = UtcNowMs() + TimeSpan.FromDays(1),
+                Expires = UtcNowMs() + TimeSpan.FromDays(90) 
+            };
 
-            Secret setResult = await client.Secrets.SetAsync("CrudWithExtendedProps", "CrudWithExtendedPropsValue1", contentType:"password", attributes:attr);
+            Secret setResult = await client.Secrets.SetAsync(secret);
             
-            Assert.Equal(attr.NotBefore, setResult.Attributes.NotBefore);
-
-            Assert.Equal(attr.Expires, setResult.Attributes.Expires);
-
             Assert.Equal("password", setResult.ContentType);
 
             Secret getResult = await client.Secrets.GetAsync("CrudWithExtendedProps");
@@ -77,7 +80,7 @@ namespace Azure.Security.KeyVault.Test
             DeletedSecret deleteResult = await client.Secrets.DeleteAsync("CrudWithExtendedProps");
 
             // remove the value which is not set on the deleted response
-            setResult.Value = null;
+            typeof(Secret).GetProperty(nameof(setResult.Value)).SetValue(setResult, null);
 
             AssertSecretsEqual(setResult, deleteResult);
         }
@@ -100,7 +103,7 @@ namespace Azure.Security.KeyVault.Test
                 Secret restoreResult = await client.Secrets.RestoreAsync(await File.ReadAllBytesAsync(backupPath));
 
                 // remove the vaule which is not set in the restore response
-                setResult.Value = null;
+                typeof(Secret).GetProperty(nameof(setResult.Value)).SetValue(setResult, null);
 
                 AssertSecretsEqual(setResult, restoreResult);
             }
@@ -133,9 +136,9 @@ namespace Azure.Security.KeyVault.Test
             {
                 Secret secret = _client.Secrets.SetAsync(SecretName, Guid.NewGuid().ToString("N")).GetAwaiter().GetResult();
 
-                secret.Value = null;
+                typeof(Secret).GetProperty(nameof(secret.Value)).SetValue(secret, null);
 
-                _versions[secret.Id] = secret;
+                _versions[secret.Id.ToString()] = secret;
             }
         }
 
@@ -145,13 +148,13 @@ namespace Azure.Security.KeyVault.Test
         }
 
         [Fact]
-        public async Task ListVersionAsyncForEach()
+        public async Task GetAllVersionsAsyncForEach()
         {
             int actVersionCount = 0;
 
-            await foreach (var secret in _client.Secrets.ListVersionsAsync(SecretName))
+            await foreach (var secret in _client.Secrets.GetAllVersionsAsync(SecretName))
             {
-                Assert.True(_versions.TryGetValue(secret.Id, out Secret exp));
+                Assert.True(_versions.TryGetValue(secret.Id.ToString(), out Secret exp));
 
                 AssertSecretsEqual(exp, secret);
 
@@ -166,11 +169,11 @@ namespace Azure.Security.KeyVault.Test
         {
             int actVersionCount = 0;
 
-            var enumerator = _client.Secrets.ListVersionsAsync(SecretName);
+            var enumerator = _client.Secrets.GetAllVersionsAsync(SecretName);
 
             while (await enumerator.MoveNextAsync())
             {
-                Assert.True(_versions.TryGetValue(enumerator.Current.Id, out Secret exp));
+                Assert.True(_versions.TryGetValue(enumerator.Current.Id.ToString(), out Secret exp));
 
                 AssertSecretsEqual(exp, enumerator.Current);
 
@@ -182,18 +185,15 @@ namespace Azure.Security.KeyVault.Test
 
 
         [Fact]
-        public async Task ListVersionByPageAsyncForEach()
+        public async Task GetAllVersionsByPageAsyncForEach()
         {
             int actVersionCount = 0;
 
-            await foreach (Page<Secret> currentPage in _client.Secrets.ListVersionsByPageAsync(SecretName))
+            await foreach (Page<SecretAttributes> currentPage in _client.Secrets.GetAllVersionsAsync(SecretName).ByPage())
             {
-
-                Assert.True(currentPage.Items.Length <= 5);
-
                 for (int i = 0; i < currentPage.Items.Length; i++)
                 {
-                    Assert.True(_versions.TryGetValue(currentPage.Items[i].Id, out Secret exp));
+                    Assert.True(_versions.TryGetValue(currentPage.Items[i].Id.ToString(), out Secret exp));
 
                     AssertSecretsEqual(exp, currentPage.Items[i]);
 
@@ -209,17 +209,17 @@ namespace Azure.Security.KeyVault.Test
         {
             int actVersionCount = 0;
 
-            var enumerator = _client.Secrets.ListVersionsByPageAsync(SecretName, maxPageSize: 5);
+            var enumerator = _client.Secrets.GetAllVersionsAsync(SecretName, maxPageSize: 5).ByPage();
 
             while (await enumerator.MoveNextAsync())
             {
-                Page<Secret> currentPage = enumerator.Current;
+                Page<SecretAttributes> currentPage = enumerator.Current;
 
                 Assert.True(currentPage.Items.Length <= 5);
 
                 for (int i = 0; i < currentPage.Items.Length; i++)
                 {
-                    Assert.True(_versions.TryGetValue(currentPage.Items[i].Id, out Secret exp));
+                    Assert.True(_versions.TryGetValue(currentPage.Items[i].Id.ToString(), out Secret exp));
 
                     AssertSecretsEqual(exp, currentPage.Items[i]);
 
@@ -278,25 +278,20 @@ namespace Azure.Security.KeyVault.Test
 
         protected void AssertSecretsEqual(Secret exp, Secret act)
         {
-            Assert.Equal(exp.Id, act.Id);
             Assert.Equal(exp.Value, act.Value);
+         
+        }
+
+        protected void AssertSecretsEqual(SecretAttributes exp, SecretAttributes act)
+        {
+            Assert.Equal(exp.Id, act.Id);
             Assert.Equal(exp.ContentType, act.ContentType);
-            Assert.Equal(exp.Kid, act.Kid);
+            Assert.Equal(exp.KeyId, act.KeyId);
             Assert.Equal(exp.Managed, act.Managed);
 
-            if (exp.Attributes == null)
-            {
-                Assert.Null(act.Attributes);
-            }
-            else
-            {
-                Assert.Equal(exp.Attributes.Created, act.Attributes.Created);
-                Assert.Equal(exp.Attributes.Enabled, act.Attributes.Enabled);
-                Assert.Equal(exp.Attributes.Expires, act.Attributes.Expires);
-                Assert.Equal(exp.Attributes.NotBefore, act.Attributes.NotBefore);
-                Assert.Equal(exp.Attributes.RecoveryLevel, act.Attributes.RecoveryLevel);
-                Assert.Equal(exp.Attributes.Updated, act.Attributes.Updated);
-            }
+            Assert.Equal(exp.Enabled, act.Enabled);
+            Assert.Equal(exp.Expires, act.Expires);
+            Assert.Equal(exp.NotBefore, act.NotBefore);
         }
     }
 }
